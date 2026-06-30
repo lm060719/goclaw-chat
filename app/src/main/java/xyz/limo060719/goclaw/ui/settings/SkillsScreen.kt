@@ -48,7 +48,12 @@ fun SkillsScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
-                    picker.launch(arrayOf("application/json", "text/*", "text/markdown", "*/*"))
+                    picker.launch(
+                        arrayOf(
+                            "application/json", "text/*", "text/markdown",
+                            "application/zip", "application/x-zip-compressed", "*/*",
+                        )
+                    )
                 },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("导入") },
@@ -58,7 +63,7 @@ fun SkillsScreen(
         if (skills.isEmpty()) {
             Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "暂无技能。\n导入 .json、.md 或 .txt 文件。",
+                    "暂无技能。\n可导入 SKILL.md（含 frontmatter）、.json、.md/.txt，\n或包含 SKILL.md 的 .zip（如 GitHub 仓库 Download ZIP）。",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }

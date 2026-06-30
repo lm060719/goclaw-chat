@@ -25,7 +25,13 @@ class SkillsViewModel @Inject constructor(
     fun import(uri: Uri) {
         viewModelScope.launch {
             repository.importFromUri(uri)
-                .onSuccess { _message.value = "已导入：${it.name}" }
+                .onSuccess { list ->
+                    _message.value = when (list.size) {
+                        0 -> "未找到可导入的技能"
+                        1 -> "已导入：${list.first().name}"
+                        else -> "已导入 ${list.size} 个技能：${list.joinToString("、") { it.name }}"
+                    }
+                }
                 .onFailure { _message.value = "导入失败：${it.message}" }
         }
     }

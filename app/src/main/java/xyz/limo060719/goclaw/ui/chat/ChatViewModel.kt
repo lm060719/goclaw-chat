@@ -448,9 +448,15 @@ class ChatViewModel @Inject constructor(
     }
 
     fun stopStreaming() {
+        val cid = currentConversationId
+        val ak = currentAgentKey
         streamJob?.cancel()
         finalizeBlock()
         _state.value = _state.value.copy(isStreaming = false)
+        // Also tell the server to stop the run — cancelling the flow only drops our socket.
+        if (cid != null && ak != null) {
+            viewModelScope.launch { repository.abortRun(cid, ak) }
+        }
     }
 
     private fun handle(ev: ChatEvent) {

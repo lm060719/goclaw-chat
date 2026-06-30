@@ -138,8 +138,89 @@ fun AiProviderScreen(
                 }
             }
 
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            ModelConfigSection(
+                state = state,
+                onLoadProviders = vm::fetchProviders,
+                onSelectProvider = vm::selectProvider,
+                onSelectModel = vm::selectModel,
+                onApply = vm::applyModelToAgent,
+            )
+
             Spacer(Modifier.height(4.dp))
             Button(onClick = vm::save, modifier = Modifier.fillMaxWidth()) { Text("保存") }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun ModelConfigSection(
+    state: SettingsUiState,
+    onLoadProviders: () -> Unit,
+    onSelectProvider: (String) -> Unit,
+    onSelectModel: (String) -> Unit,
+    onApply: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("模型配置（改 Agent 服务端模型）", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "从供应商加载真实模型列表，应用到上方选中的 Agent。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        OutlinedButton(onClick = onLoadProviders, enabled = !state.loadingProviders) {
+            if (state.loadingProviders) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text("加载供应商")
+        }
+
+        if (state.providers.isNotEmpty()) {
+            Text("供应商：", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.providers.forEach { p ->
+                    FilterChip(
+                        selected = p.resolvedId == state.selectedProviderId,
+                        onClick = { onSelectProvider(p.resolvedId) },
+                        label = { Text(p.label) },
+                    )
+                }
+            }
+        }
+
+        if (state.loadingModels) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("加载模型…", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        if (state.models.isNotEmpty()) {
+            Text("模型：", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.models.forEach { m ->
+                    FilterChip(
+                        selected = m == state.model,
+                        onClick = { onSelectModel(m) },
+                        label = { Text(m) },
+                    )
+                }
+            }
+            Button(
+                onClick = onApply,
+                enabled = !state.applyingModel && state.model.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (state.applyingModel) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text("应用模型到当前 Agent")
+            }
         }
     }
 }

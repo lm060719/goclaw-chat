@@ -44,6 +44,15 @@ data class ExecApproval(
     val reason: String = "",
 )
 
+/** A server-side chat session (sessions.list). */
+data class SessionSummary(
+    val key: String,
+    val title: String = "",
+    val agent: String = "",
+    val messageCount: Int = 0,
+    val updated: String = "",
+)
+
 /** Events emitted while a single chat.send round runs over the WebSocket. */
 sealed interface WsChatEvent {
     /** A reasoning/extended-thinking block (gateway sends one full block per step). */
@@ -444,6 +453,142 @@ class GoClawWsClient @Inject constructor(
         }
         val ws = http.wsClient.newWebSocket(request, listener)
         cont.invokeOnCancellation { ws.cancel() }
+    }
+
+    /** Aborts the in-progress run for a session via `chat.abort`. Best-effort. */
+    suspend fun abortRun(settings: GoClawSettings, sessionKey: String): Boolean =
+        rpcBool(settings, "chat.abort") { put("sessionKey", sessionKey) }
+
+    /** Clears a session's history via `sessions.reset`. */
+    suspend fun resetSession(settings: GoClawSettings, key: String): Boolean =
+        rpcBool(settings, "sessions.reset") { put("key", key) }
+
+    /** Changes an agent's model (and optionally provider) server-side via `agents.update`. */
+    suspend fun updateAgentModel(
+        settings: GoClawSettings,
+        agentId: String,
+        model: String,
+        provider: String? = null,
+    ): Boolean = rpcBool(settings, "agents.update") {
+        put("agentId", agentId)
+        put("model", model)
+        if (!provider.isNullOrBlank()) put("provider", provider)
+    }
+
+    /** Truncates a session's history, keeping the last [keepLast] messages, via `sessions.compact`. */
+    suspend fun compactSession(settings: GoClawSettings, key: String, keepLast: Int = 4): Boolean =
+        rpcBool(settings, "sessions.compact") { put("key", key); put("keepLast", keepLast) }
+
+    /** Lists server-side sessions via `sessions.list` (optionally scoped to an agent). */
+    suspend fun listSessions(settings: GoClawSettings, agentId: String? = null): List<SessionSummary> =
+        suspendCancellableCoroutine { cont ->
+            val done = AtomicBoolean(false)
+            val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
+            val listener = object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    webSocket.send(connectFrame(settings))
+                }
+
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    runCatching {
+                        val obj = http.json.parseToJsonElement(text).jsonObject
+                        if (obj["type"]?.jsonPrimitive?.content != "res") return
+                        val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
+                        when (obj["id"]?.jsonPrimitive?.content) {
+                            "c" -> if (ok) webSocket.send(
+                                buildJsonObject {
+                                    put("type", "req"); put("id", "s"); put("method", "sessions.list")
+                                    putJsonObject("params") { if (!agentId.isNullOrBlank()) put("agentId", agentId) }
+                                }.toString()
+                            ) else finish(webSocket, emptyList())
+                            "s" -> finish(webSocket, if (ok) parseSessions(obj["payload"]) else emptyList())
+                        }
+                    }
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                    finish(webSocket, emptyList())
+
+                private fun finish(webSocket: WebSocket, result: List<SessionSummary>) {
+                    webSocket.close(1000, null)
+                    if (done.compareAndSet(false, true) && cont.isActive) cont.resume(result)
+                }
+            }
+            val ws = http.wsClient.newWebSocket(request, listener)
+            cont.invokeOnCancellation { ws.cancel() }
+        }
+
+    /** connect → single RPC `method` with the given params → returns the response `ok`. */
+    private suspend fun rpcBool(
+        settings: GoClawSettings,
+        method: String,
+        params: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit,
+    ): Boolean = suspendCancellableCoroutine { cont ->
+        val done = AtomicBoolean(false)
+        val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
+        val listener = object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                webSocket.send(connectFrame(settings))
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                runCatching {
+                    val obj = http.json.parseToJsonElement(text).jsonObject
+                    if (obj["type"]?.jsonPrimitive?.content != "res") return
+                    val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
+                    when (obj["id"]?.jsonPrimitive?.content) {
+                        "c" -> if (ok) webSocket.send(
+                            buildJsonObject {
+                                put("type", "req"); put("id", "x"); put("method", method)
+                                putJsonObject("params", params)
+                            }.toString()
+                        ) else finish(webSocket, false)
+                        "x" -> finish(webSocket, ok)
+                    }
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                finish(webSocket, false)
+
+            private fun finish(webSocket: WebSocket, ok: Boolean) {
+                webSocket.close(1000, null)
+                if (done.compareAndSet(false, true) && cont.isActive) cont.resume(ok)
+            }
+        }
+        val ws = http.wsClient.newWebSocket(request, listener)
+        cont.invokeOnCancellation { ws.cancel() }
+    }
+
+    /** The standard `connect` handshake frame as a JSON string. */
+    private fun connectFrame(settings: GoClawSettings): String =
+        buildJsonObject {
+            put("type", "req"); put("id", "c"); put("method", "connect")
+            putJsonObject("params") {
+                put("token", settings.apiKey)
+                put("user_id", settings.userId.ifBlank { "app" })
+            }
+        }.toString()
+
+    /** Tolerant parse of a sessions.list payload (bare array or {sessions|data|items}). */
+    private fun parseSessions(payloadEl: kotlinx.serialization.json.JsonElement?): List<SessionSummary> {
+        val arr = when (payloadEl) {
+            is JsonArray -> payloadEl
+            is JsonObject -> (payloadEl["sessions"] ?: payloadEl["data"] ?: payloadEl["items"]) as? JsonArray
+            else -> null
+        } ?: return emptyList()
+        return arr.mapNotNull { el ->
+            val o = el as? JsonObject ?: return@mapNotNull null
+            val key = strP(o, "key", "sessionKey", "session_key", "id")
+            if (key.isBlank()) return@mapNotNull null
+            SessionSummary(
+                key = key,
+                title = strA(o, "title", "label", "name", "preview"),
+                agent = strP(o, "agent", "agentKey", "agent_key", "agentId", "agent_id"),
+                messageCount = strP(o, "messageCount", "message_count", "count").toIntOrNull() ?: 0,
+                updated = strP(o, "updatedAt", "updated_at", "updated", "lastActivity", "last_activity"),
+            )
+        }
     }
 
     /** Tolerant parse of an exec.approval.list payload (bare array or {approvals|pending|items|data}). */

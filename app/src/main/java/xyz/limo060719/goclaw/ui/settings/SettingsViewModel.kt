@@ -10,7 +10,9 @@ import kotlinx.coroutines.launch
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.GoClawApi
+import xyz.limo060719.goclaw.data.remote.GoClawWsClient
 import xyz.limo060719.goclaw.data.remote.dto.AgentInfo
+import xyz.limo060719.goclaw.data.remote.dto.ProviderInfo
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -22,6 +24,13 @@ data class SettingsUiState(
     val savedAgents: List<String> = emptyList(),
     val agents: List<AgentInfo> = emptyList(),
     val loadingAgents: Boolean = false,
+    // Model configuration (changes the agent's model server-side via agents.update).
+    val providers: List<ProviderInfo> = emptyList(),
+    val selectedProviderId: String? = null,
+    val models: List<String> = emptyList(),
+    val loadingProviders: Boolean = false,
+    val loadingModels: Boolean = false,
+    val applyingModel: Boolean = false,
     val message: String? = null,
 )
 
@@ -29,6 +38,7 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val settingsStore: SettingsStore,
     private val api: GoClawApi,
+    private val ws: GoClawWsClient,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -95,6 +105,72 @@ class SettingsViewModel @Inject constructor(
                 .onFailure {
                     _state.value = _state.value.copy(loadingAgents = false, message = "加载失败：${it.message}")
                 }
+        }
+    }
+
+    /** Settings snapshot from the current form (so the user can query before saving). */
+    private fun snapshotSettings(): GoClawSettings {
+        val st = _state.value
+        return GoClawSettings(
+            baseUrl = st.baseUrl.trim().trimEnd('/'),
+            apiKey = st.apiKey.trim(),
+            userId = st.userId.trim(),
+        )
+    }
+
+    fun fetchProviders() {
+        val st = _state.value
+        if (st.baseUrl.isBlank() || st.apiKey.isBlank()) {
+            _state.value = st.copy(message = "请先填写后端地址和 API 密钥")
+            return
+        }
+        _state.value = st.copy(loadingProviders = true)
+        viewModelScope.launch {
+            api.providers(snapshotSettings())
+                .onSuccess { list ->
+                    _state.value = _state.value.copy(
+                        providers = list,
+                        loadingProviders = false,
+                        message = if (list.isEmpty()) "未发现供应商" else null,
+                    )
+                }
+                .onFailure { _state.value = _state.value.copy(loadingProviders = false, message = "加载供应商失败：${it.message}") }
+        }
+    }
+
+    fun selectProvider(providerId: String) {
+        _state.value = _state.value.copy(selectedProviderId = providerId, models = emptyList(), loadingModels = true)
+        viewModelScope.launch {
+            api.providerModels(snapshotSettings(), providerId)
+                .onSuccess { _state.value = _state.value.copy(models = it, loadingModels = false, message = if (it.isEmpty()) "该供应商无可用模型" else null) }
+                .onFailure { _state.value = _state.value.copy(loadingModels = false, message = "加载模型失败：${it.message}") }
+        }
+    }
+
+    fun selectModel(model: String) { _state.value = _state.value.copy(model = model) }
+
+    /** Applies the chosen model to the selected agent server-side via agents.update. */
+    fun applyModelToAgent() {
+        val st = _state.value
+        val target = st.agents.firstOrNull { it.resolvedKey == st.agent }
+        val agentId = (target?.id?.takeIf { it.isNotBlank() } ?: st.agent.trim())
+        if (agentId.isBlank()) {
+            _state.value = st.copy(message = "请先在上方加载并选择一个 Agent")
+            return
+        }
+        if (st.model.isBlank()) {
+            _state.value = st.copy(message = "请先选择模型")
+            return
+        }
+        val providerName = st.providers.firstOrNull { it.resolvedId == st.selectedProviderId }?.providerName
+        _state.value = st.copy(applyingModel = true)
+        viewModelScope.launch {
+            val ok = runCatching { ws.updateAgentModel(snapshotSettings(), agentId, st.model, providerName) }
+                .getOrDefault(false)
+            _state.value = _state.value.copy(
+                applyingModel = false,
+                message = if (ok) "已更新 Agent 模型为 ${st.model}" else "更新失败（可能需要管理员权限）",
+            )
         }
     }
 

@@ -21,6 +21,7 @@ import xyz.limo060719.goclaw.ui.chat.ChatScreen
 import xyz.limo060719.goclaw.ui.settings.AiProviderScreen
 import xyz.limo060719.goclaw.ui.settings.ApprovalScreen
 import xyz.limo060719.goclaw.ui.settings.ExtraFeaturesScreen
+import xyz.limo060719.goclaw.ui.settings.SessionsScreen
 import xyz.limo060719.goclaw.ui.settings.SettingsScreen
 import xyz.limo060719.goclaw.ui.settings.SkillsScreen
 import xyz.limo060719.goclaw.ui.theme.GoClawTheme
@@ -55,10 +56,14 @@ class MainActivity : ComponentActivity() {
                                 onBack = { nav.popBackStack() },
                                 onOpenSkills = { nav.navigate("skills") },
                                 onOpenApprovals = { nav.navigate("approvals") },
+                                onOpenSessions = { nav.navigate("sessions") },
                             )
                         }
                         composable("approvals") {
                             ApprovalScreen(onBack = { nav.popBackStack() })
+                        }
+                        composable("sessions") {
+                            SessionsScreen(onBack = { nav.popBackStack() })
                         }
                         composable("settings") {
                             SettingsScreen(

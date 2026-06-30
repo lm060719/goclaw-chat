@@ -115,6 +115,24 @@ data class SessionInfo(
 @Serializable
 data class SessionList(val data: List<SessionInfo> = emptyList())
 
+/* ---- /v1/providers ---- */
+
+@Serializable
+data class ProviderInfo(
+    val id: String? = null,
+    val name: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("provider_type") val providerType: String? = null,
+    val enabled: Boolean = true,
+) {
+    /** Identifier used for `/v1/providers/{id}/models`. */
+    val resolvedId: String get() = listOf(id, name).firstOrNull { !it.isNullOrBlank() }.orEmpty()
+    /** Human label for the picker. */
+    val label: String get() = listOf(displayName, name, id).firstOrNull { !it.isNullOrBlank() }.orEmpty()
+    /** Provider name to send to `agents.update {provider}`. */
+    val providerName: String get() = listOf(name, id).firstOrNull { !it.isNullOrBlank() }.orEmpty()
+}
+
 /* ---- /v1/media/upload ---- */
 
 /** Response of `POST /v1/media/upload`. The server returns a workspace path the agent can read. */

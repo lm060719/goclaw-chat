@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ fun ExtraFeaturesScreen(
     onBack: () -> Unit,
     onOpenSkills: () -> Unit,
     onOpenApprovals: () -> Unit,
+    onOpenSessions: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -47,7 +49,14 @@ fun ExtraFeaturesScreen(
                 subtitle = "审批 Agent 待处理的 shell 命令",
                 onClick = onOpenApprovals,
             )
-        }
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.Forum,
+                title = "会话管理",
+                subtitle = "浏览服务端会话，压缩超长历史、清空或删除",
+                onClick = onOpenSessions,
+            )
+}
     }
 }
 

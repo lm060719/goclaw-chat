@@ -82,6 +82,13 @@ class ChatRepository @Inject constructor(
     private fun sessionKeyOf(agentKey: String, conversationId: String): String =
         "agent:${agentKey.ifBlank { "default" }}:ws:direct:$conversationId"
 
+    /** Aborts the in-progress server run for this conversation via `chat.abort`. Best-effort. */
+    suspend fun abortRun(conversationId: String, agentKey: String) {
+        val s = settingsStore.current()
+        if (!s.isConfigured) return
+        runCatching { ws.abortRun(s, sessionKeyOf(agentKey.ifBlank { "default" }, conversationId)) }
+    }
+
     /** Deletes the conversation's server-side session + history. Best-effort. */
     suspend fun deleteServerSession(conversationId: String, agentKey: String) {
         val s = settingsStore.current()

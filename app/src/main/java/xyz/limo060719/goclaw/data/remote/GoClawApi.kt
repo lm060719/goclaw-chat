@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.Request
@@ -12,6 +13,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.remote.dto.AgentInfo
 import xyz.limo060719.goclaw.data.remote.dto.MediaUpload
+import xyz.limo060719.goclaw.data.remote.dto.ProviderInfo
 import xyz.limo060719.goclaw.data.remote.dto.SessionInfo
 import javax.inject.Inject
 
@@ -88,6 +90,28 @@ class GoClawApi @Inject constructor(
 
     suspend fun sessions(s: GoClawSettings): Result<List<SessionInfo>> =
         getList(s, "/v1/sessions") { raw -> parseList(raw, SessionInfo.serializer()) }
+
+    /** Lists configured LLM providers (`GET /v1/providers`). */
+    suspend fun providers(s: GoClawSettings): Result<List<ProviderInfo>> =
+        getList(s, "/v1/providers") { raw -> parseList(raw, ProviderInfo.serializer()) }
+
+    /** Lists a provider's available model ids (`GET /v1/providers/{id}/models`). */
+    suspend fun providerModels(s: GoClawSettings, providerId: String): Result<List<String>> =
+        getList(s, "/v1/providers/$providerId/models") { raw -> parseModelIds(raw) }
+
+    /** Tolerant parse of a models list: bare array or {data|models|...}; string or {id|name|model}. */
+    private fun parseModelIds(raw: String): List<String> {
+        val root = runCatching { http.json.parseToJsonElement(raw) }.getOrNull() ?: return emptyList()
+        val array = root.findItemArray() ?: return emptyList()
+        return array.mapNotNull { el ->
+            when (el) {
+                is JsonPrimitive -> el.content.takeIf { it.isNotBlank() }
+                is JsonObject -> ((el["id"] ?: el["name"] ?: el["model"]) as? JsonPrimitive)
+                    ?.content?.takeIf { it.isNotBlank() }
+                else -> null
+            }
+        }.distinct()
+    }
 
     /**
      * Tolerant list parsing: accepts a bare `[...]`, `{data:[...]}`, `{agents:[...]}`,

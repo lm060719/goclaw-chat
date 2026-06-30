@@ -33,6 +33,8 @@ data class GoClawSettings(
     val assistantName: String = "",
     val selfAvatar: String = "",       // local file path
     val assistantAvatar: String = "",  // local file path
+    /** Use the backend `/v1/tts/synthesize` for replies instead of on-device TTS. */
+    val ttsBackend: Boolean = false,
 ) {
     val isConfigured: Boolean get() = baseUrl.isNotBlank() && apiKey.isNotBlank()
 }
@@ -55,6 +57,7 @@ class SettingsStore @Inject constructor(
         val ASSISTANT_NAME = stringPreferencesKey("assistant_name")
         val SELF_AVATAR = stringPreferencesKey("self_avatar")
         val ASSISTANT_AVATAR = stringPreferencesKey("assistant_avatar")
+        val TTS_BACKEND = booleanPreferencesKey("tts_backend")
     }
 
     val settings: Flow<GoClawSettings> = context.dataStore.data.map { p ->
@@ -72,6 +75,7 @@ class SettingsStore @Inject constructor(
             assistantName = p[Keys.ASSISTANT_NAME].orEmpty(),
             selfAvatar = p[Keys.SELF_AVATAR].orEmpty(),
             assistantAvatar = p[Keys.ASSISTANT_AVATAR].orEmpty(),
+            ttsBackend = p[Keys.TTS_BACKEND] ?: false,
         )
     }
 
@@ -93,6 +97,10 @@ class SettingsStore @Inject constructor(
 
     suspend fun updateThemeMode(mode: String) {
         context.dataStore.edit { p -> p[Keys.THEME_MODE] = mode }
+    }
+
+    suspend fun updateTtsBackend(enabled: Boolean) {
+        context.dataStore.edit { p -> p[Keys.TTS_BACKEND] = enabled }
     }
 
     suspend fun updateWechatProfile(

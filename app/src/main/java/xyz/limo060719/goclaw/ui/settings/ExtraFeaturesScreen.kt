@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Insights
@@ -26,6 +27,7 @@ fun ExtraFeaturesScreen(
     onOpenSessions: () -> Unit,
     onOpenUsage: () -> Unit,
     onOpenTraces: () -> Unit,
+    onOpenBackendSkills: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -42,9 +44,16 @@ fun ExtraFeaturesScreen(
         Column(Modifier.padding(padding).fillMaxSize()) {
             FeatureRow(
                 icon = Icons.Filled.Extension,
-                title = "技能",
-                subtitle = "导入并管理注入到对话的技能",
+                title = "技能（本地注入）",
+                subtitle = "导入技能，作为指令注入到对话",
                 onClick = onOpenSkills,
+            )
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.Bolt,
+                title = "后端技能（可执行）",
+                subtitle = "上传 .zip 到后端，可执行脚本、按需加载",
+                onClick = onOpenBackendSkills,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(

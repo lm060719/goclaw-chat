@@ -101,12 +101,16 @@ class ChatViewModel @Inject constructor(
 
     private val recorder = xyz.limo060719.goclaw.util.AudioRecorder(context)
     private var voiceStart = 0L
+    private val audioPlayer = xyz.limo060719.goclaw.util.AudioPlayer(context)
+    /** Whether replies are spoken via backend TTS (mirrors settings.ttsBackend). */
+    private var ttsBackend = false
 
     init {
         settingsStore.settings.onEach {
             // Default a new chat to the agent last picked; fall back to the global default.
             val default = it.lastAgent.ifBlank { it.agent }
             activeAgent = default
+            ttsBackend = it.ttsBackend
             // Keep the chip on that default while the conversation is fresh & unbound.
             if (currentAgentKey == null && _state.value.messages.isEmpty()) {
                 _state.value = _state.value.copy(agent = default)
@@ -176,8 +180,20 @@ class ChatViewModel @Inject constructor(
 
     fun toggleTts() {
         val on = !_state.value.ttsEnabled
-        if (!on) speech.stopSpeaking()
+        if (!on) { speech.stopSpeaking(); audioPlayer.stop() }
         _state.value = _state.value.copy(ttsEnabled = on)
+    }
+
+    /** Speaks a reply via backend TTS when enabled (falling back to on-device), else on-device. */
+    private fun speakReply(text: String) {
+        if (ttsBackend) {
+            viewModelScope.launch {
+                val bytes = runCatching { repository.synthesizeSpeech(text) }.getOrNull()
+                if (bytes != null) audioPlayer.play(bytes) else speech.speak(text)
+            }
+        } else {
+            speech.speak(text)
+        }
     }
 
     fun addImage(uri: Uri) = viewModelScope.launch {
@@ -490,7 +506,7 @@ class ChatViewModel @Inject constructor(
                 }
                 finalizeBlock()
                 _state.value = _state.value.copy(isStreaming = false)
-                if (_state.value.ttsEnabled && ev.text.isNotBlank()) speech.speak(ev.text)
+                if (_state.value.ttsEnabled && ev.text.isNotBlank()) speakReply(ev.text)
                 persist()
             }
             is ChatEvent.Error -> {
@@ -655,6 +671,7 @@ class ChatViewModel @Inject constructor(
     override fun onCleared() {
         speech.shutdown()
         recorder.cancel()
+        audioPlayer.release()
         super.onCleared()
     }
 }

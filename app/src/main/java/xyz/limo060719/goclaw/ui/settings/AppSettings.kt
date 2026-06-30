@@ -51,6 +51,7 @@ class AppSettingsViewModel @Inject constructor(
 
     fun setWechatUi(on: Boolean) = viewModelScope.launch { store.updateWechatUi(on) }
     fun setThemeMode(mode: String) = viewModelScope.launch { store.updateThemeMode(mode) }
+    fun setTtsBackend(on: Boolean) = viewModelScope.launch { store.updateTtsBackend(on) }
     fun saveProfile(selfName: String, assistantName: String) =
         viewModelScope.launch { store.updateWechatProfile(selfName, assistantName) }
 
@@ -147,6 +148,24 @@ fun SettingsScreen(
 
             if (s.wechatUi) {
                 WechatProfileCard(s, vm)
+            }
+
+            // 语音合成
+            SettingCard(color = MaterialTheme.colorScheme.surfaceContainer) {
+                Row(
+                    Modifier.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("使用后端 TTS（高音质）", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "朗读回复时用后端语音合成（需后端配置 TTS provider），失败自动回退到设备 TTS。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = s.ttsBackend, onCheckedChange = vm::setTtsBackend)
+                }
             }
         }
     }

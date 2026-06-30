@@ -65,6 +65,13 @@ class ChatRepository @Inject constructor(
         return api.uploadMedia(s, bytes, mimeType, filename).getOrNull()
     }
 
+    /** Synthesizes speech for [text] via the backend TTS endpoint; null on failure. */
+    suspend fun synthesizeSpeech(text: String): ByteArray? {
+        val s = settingsStore.current()
+        if (!s.isConfigured || text.isBlank()) return null
+        return api.synthesizeTts(s, text).getOrNull()
+    }
+
     /** Downloads a file from the server by its path. */
     suspend fun downloadFile(
         s: GoClawSettings,

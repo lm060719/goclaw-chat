@@ -7,6 +7,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.Request
@@ -48,6 +50,14 @@ class TraceInfo(
     val tokens: Long,
     val costUsd: Double,
     val createdAt: String,
+)
+
+/** A backend-managed (executable) skill (`/v1/skills`). */
+data class BackendSkill(
+    val id: String,
+    val name: String,
+    val description: String,
+    val enabled: Boolean,
 )
 
 class GoClawApi @Inject constructor(
@@ -193,6 +203,96 @@ class GoClawApi @Inject constructor(
             uniqueUsers = o.num("unique_users", "uniqueUsers", "users").toLong(),
             errors = o.num("errors", "error_count", "errorCount").toLong(),
         )
+    }
+
+    /* ---- Backend (executable) skills ---- */
+
+    suspend fun listBackendSkills(s: GoClawSettings): Result<List<BackendSkill>> =
+        getElement(s, "/v1/skills").mapCatching { parseBackendSkills(it) }
+
+    /** Uploads a skill bundle (`.zip`, ≤20MB) to the backend (`POST /v1/skills/upload`). */
+    suspend fun uploadSkill(s: GoClawSettings, bytes: ByteArray, filename: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val body = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("file", filename, bytes.toRequestBody("application/zip".toMediaTypeOrNull()))
+                    .build()
+                val req = with(http) {
+                    Request.Builder().url(url(s.baseUrl, "/v1/skills/upload")).goClawAuth(s).post(body).build()
+                }
+                http.client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}: ${resp.body?.string().orEmpty().take(200)}")
+                }
+                Unit
+            }
+        }
+
+    /** Synthesizes speech for [text] via the backend (`POST /v1/tts/synthesize`). Returns audio bytes. */
+    suspend fun synthesizeTts(s: GoClawSettings, text: String): Result<ByteArray> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val payload = buildJsonObject { put("text", text) }.toString()
+                val req = with(http) {
+                    Request.Builder().url(url(s.baseUrl, "/v1/tts/synthesize")).goClawAuth(s)
+                        .post(payload.toRequestBody("application/json".toMediaTypeOrNull())).build()
+                }
+                http.client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                    resp.body?.bytes()?.takeIf { it.isNotEmpty() } ?: error("空响应")
+                }
+            }
+        }
+
+    /** Enables/disables a backend skill (`POST /v1/skills/{id}/toggle` with `{enabled}`). */
+    suspend fun toggleBackendSkill(s: GoClawSettings, id: String, enabled: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val payload = buildJsonObject { put("enabled", enabled) }.toString()
+                val req = with(http) {
+                    Request.Builder().url(url(s.baseUrl, "/v1/skills/$id/toggle")).goClawAuth(s)
+                        .post(payload.toRequestBody("application/json".toMediaTypeOrNull())).build()
+                }
+                http.client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}: ${resp.body?.string().orEmpty().take(160)}")
+                }
+                Unit
+            }
+        }
+
+    suspend fun deleteBackendSkill(s: GoClawSettings, id: String): Result<Unit> =
+        deleteOk(s, "/v1/skills/$id")
+
+    private suspend fun deleteOk(s: GoClawSettings, path: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val req = with(http) {
+                    Request.Builder().url(url(s.baseUrl, path)).goClawAuth(s).delete().build()
+                }
+                http.client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                }
+                Unit
+            }
+        }
+
+    private fun parseBackendSkills(el: JsonElement): List<BackendSkill> {
+        val arr = el.findItemArray() ?: return emptyList()
+        return arr.mapNotNull { it as? JsonObject }.mapNotNull { o ->
+            val id = o.strv("id", "skill_id", "skillId", "slug")
+            if (id.isBlank()) return@mapNotNull null
+            BackendSkill(
+                id = id,
+                name = o.strv("name", "title", "display_name", "slug").ifBlank { id },
+                description = o.strv("description", "summary", "desc"),
+                enabled = o.boolOr("enabled", "is_enabled", "active", default = true),
+            )
+        }
+    }
+
+    private fun JsonObject.boolOr(vararg keys: String, default: Boolean): Boolean {
+        for (k in keys) (this[k] as? JsonPrimitive)?.content?.toBooleanStrictOrNull()?.let { return it }
+        return default
     }
 
     private fun parseTraces(el: JsonElement): List<TraceInfo> {

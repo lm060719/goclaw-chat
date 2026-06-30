@@ -1,0 +1,24 @@
+.kotlin
+
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app/build
+/app/release
+
+*.apk
+*.ap_
+
+# AI tool local configs
+.claude
+.remark
+
+# Codex agent config
+AGENTS.md

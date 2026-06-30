@@ -24,6 +24,8 @@ import xyz.limo060719.goclaw.ui.settings.ExtraFeaturesScreen
 import xyz.limo060719.goclaw.ui.settings.SessionsScreen
 import xyz.limo060719.goclaw.ui.settings.SettingsScreen
 import xyz.limo060719.goclaw.ui.settings.SkillsScreen
+import xyz.limo060719.goclaw.ui.settings.TracesScreen
+import xyz.limo060719.goclaw.ui.settings.UsageScreen
 import xyz.limo060719.goclaw.ui.theme.GoClawTheme
 import javax.inject.Inject
 
@@ -57,6 +59,8 @@ class MainActivity : ComponentActivity() {
                                 onOpenSkills = { nav.navigate("skills") },
                                 onOpenApprovals = { nav.navigate("approvals") },
                                 onOpenSessions = { nav.navigate("sessions") },
+                                onOpenUsage = { nav.navigate("usage") },
+                                onOpenTraces = { nav.navigate("traces") },
                             )
                         }
                         composable("approvals") {
@@ -64,6 +68,12 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("sessions") {
                             SessionsScreen(onBack = { nav.popBackStack() })
+                        }
+                        composable("usage") {
+                            UsageScreen(onBack = { nav.popBackStack() })
+                        }
+                        composable("traces") {
+                            TracesScreen(onBack = { nav.popBackStack() })
                         }
                         composable("settings") {
                             SettingsScreen(

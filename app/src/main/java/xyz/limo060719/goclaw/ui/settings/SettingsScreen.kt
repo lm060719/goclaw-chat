@@ -1,9 +1,13 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -96,10 +100,37 @@ fun AiProviderScreen(
             OutlinedTextField(
                 value = state.model,
                 onValueChange = vm::onModel,
-                label = { Text("模型(可选)") },
+                label = { Text("模型（必填）") },
+                isError = state.model.isBlank(),
+                supportingText = if (state.model.isBlank()) {
+                    { Text("必须指定模型，否则无法连接") }
+                } else null,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = vm::testConnection, enabled = !state.testingConnection) {
+                    if (state.testingConnection) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text("测试连接")
+                }
+                state.gatewayOnline?.let { online ->
+                    Box(
+                        Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(if (online) Color(0xFF22C55E) else MaterialTheme.colorScheme.error)
+                    )
+                    Text(
+                        if (online) "在线" else "离线",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             OutlinedButton(onClick = vm::fetchAgents, enabled = !state.loadingAgents) {
                 if (state.loadingAgents) {

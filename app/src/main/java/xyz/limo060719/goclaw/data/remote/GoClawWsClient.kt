@@ -518,6 +518,48 @@ class GoClawWsClient @Inject constructor(
             cont.invokeOnCancellation { ws.cancel() }
         }
 
+    /** Health/version probe: connect → `status` → returns the gateway version, or null if unreachable. */
+    suspend fun gatewayVersion(settings: GoClawSettings): String? =
+        suspendCancellableCoroutine { cont ->
+            val done = AtomicBoolean(false)
+            val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
+            val listener = object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    webSocket.send(connectFrame(settings))
+                }
+
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    runCatching {
+                        val obj = http.json.parseToJsonElement(text).jsonObject
+                        if (obj["type"]?.jsonPrimitive?.content != "res") return
+                        val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
+                        when (obj["id"]?.jsonPrimitive?.content) {
+                            "c" -> if (ok) webSocket.send(
+                                buildJsonObject {
+                                    put("type", "req"); put("id", "v"); put("method", "status")
+                                    putJsonObject("params") {}
+                                }.toString()
+                            ) else finish(webSocket, null)
+                            "v" -> {
+                                val p = obj["payload"]?.jsonObject
+                                finish(webSocket, if (ok) strP(p, "version", "gatewayVersion").ifBlank { "ok" } else null)
+                            }
+                        }
+                    }
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                    finish(webSocket, null)
+
+                private fun finish(webSocket: WebSocket, result: String?) {
+                    webSocket.close(1000, null)
+                    if (done.compareAndSet(false, true) && cont.isActive) cont.resume(result)
+                }
+            }
+            val ws = http.wsClient.newWebSocket(request, listener)
+            cont.invokeOnCancellation { ws.cancel() }
+        }
+
     /** connect → single RPC `method` with the given params → returns the response `ok`. */
     private suspend fun rpcBool(
         settings: GoClawSettings,

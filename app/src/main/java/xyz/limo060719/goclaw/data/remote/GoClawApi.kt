@@ -2,6 +2,7 @@ package xyz.limo060719.goclaw.data.remote
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -22,6 +23,31 @@ class DownloadedFile(
     val filename: String,
     val mimeType: String,
     val bytes: ByteArray,
+)
+
+/** Aggregated token/cost usage (`/v1/usage/summary`, the `current` period). */
+class UsageSummary(
+    val totalTokens: Long,
+    val promptTokens: Long,
+    val completionTokens: Long,
+    val costUsd: Double,
+    val requests: Long,
+    val period: String,
+    val llmCalls: Long = 0,
+    val toolCalls: Long = 0,
+    val uniqueUsers: Long = 0,
+    val errors: Long = 0,
+)
+
+/** One LLM execution trace row (`/v1/traces`). */
+class TraceInfo(
+    val id: String,
+    val agent: String,
+    val status: String,
+    val model: String,
+    val tokens: Long,
+    val costUsd: Double,
+    val createdAt: String,
 )
 
 class GoClawApi @Inject constructor(
@@ -111,6 +137,88 @@ class GoClawApi @Inject constructor(
                 else -> null
             }
         }.distinct()
+    }
+
+    /** Token/cost usage summary (`GET /v1/usage/summary`). */
+    suspend fun usageSummary(s: GoClawSettings): Result<UsageSummary> =
+        getElement(s, "/v1/usage/summary").mapCatching { parseUsage(it) }
+
+    /** Raw `GET /v1/usage/summary` body (debug aid to align field names). */
+    suspend fun usageRaw(s: GoClawSettings): Result<String> =
+        getElement(s, "/v1/usage/summary").map { it.toString() }
+
+    /** Recent LLM traces (`GET /v1/traces`). */
+    suspend fun traces(s: GoClawSettings, limit: Int = 50): Result<List<TraceInfo>> =
+        getElement(s, "/v1/traces?limit=$limit").mapCatching { parseTraces(it) }
+
+    /** Full trace detail as pretty-printed JSON (`GET /v1/traces/{id}`). */
+    suspend fun traceDetail(s: GoClawSettings, id: String): Result<String> =
+        getElement(s, "/v1/traces/$id").mapCatching {
+            Json { prettyPrint = true }.encodeToString(JsonElement.serializer(), it)
+        }
+
+    /** Performs an authenticated GET and parses the body as a JSON element. */
+    private suspend fun getElement(s: GoClawSettings, path: String): Result<JsonElement> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val req = with(http) { Request.Builder().url(url(s.baseUrl, path)).goClawAuth(s).get().build() }
+                http.client.newCall(req).execute().use { resp ->
+                    val raw = resp.body?.string().orEmpty()
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                    http.json.parseToJsonElement(raw)
+                }
+            }
+        }
+
+    private fun parseUsage(el: JsonElement): UsageSummary {
+        val root = el as? JsonObject ?: return UsageSummary(0, 0, 0, 0.0, 0, "")
+        // The summary nests the active window under `current` (with `previous` for comparison).
+        val o = (root["current"] as? JsonObject) ?: (root["summary"] as? JsonObject)
+            ?: (root["data"] as? JsonObject) ?: (root["totals"] as? JsonObject) ?: root
+        var cost = o.num("cost_usd", "costUsd", "total_cost_usd", "cost", "total_cost")
+        if (cost == 0.0) cost = o.num("cost_micros", "total_cost_micros", "costMicros") / 1_000_000.0
+        val input = o.num("prompt_tokens", "promptTokens", "input_tokens", "inputTokens").toLong()
+        val output = o.num("completion_tokens", "completionTokens", "output_tokens", "outputTokens").toLong()
+        var total = o.num("total_tokens", "totalTokens", "tokens").toLong()
+        if (total == 0L) total = input + output
+        return UsageSummary(
+            totalTokens = total,
+            promptTokens = input,
+            completionTokens = output,
+            costUsd = cost,
+            requests = o.num("requests", "request_count", "requestCount", "count", "calls").toLong(),
+            period = o.strv("period", "window", "range", "since"),
+            llmCalls = o.num("llm_calls", "llmCalls").toLong(),
+            toolCalls = o.num("tool_calls", "toolCalls").toLong(),
+            uniqueUsers = o.num("unique_users", "uniqueUsers", "users").toLong(),
+            errors = o.num("errors", "error_count", "errorCount").toLong(),
+        )
+    }
+
+    private fun parseTraces(el: JsonElement): List<TraceInfo> {
+        val arr = el.findItemArray() ?: return emptyList()
+        return arr.mapNotNull { it as? JsonObject }.map { o ->
+            TraceInfo(
+                id = o.strv("id", "traceId", "trace_id"),
+                agent = o.strv("agent", "agentName", "agent_name", "agentId", "agent_id"),
+                status = o.strv("status", "state"),
+                model = o.strv("model", "model_id", "modelId"),
+                tokens = o.num("total_tokens", "totalTokens", "tokens").toLong(),
+                costUsd = o.num("cost_usd", "costUsd", "cost", "total_cost_usd"),
+                createdAt = o.strv("created_at", "createdAt", "started_at", "startedAt", "time", "timestamp"),
+            )
+        }
+    }
+
+    private fun JsonObject.num(vararg keys: String): Double {
+        for (k in keys) (this[k] as? JsonPrimitive)?.content?.toDoubleOrNull()?.let { return it }
+        return 0.0
+    }
+
+    private fun JsonObject.strv(vararg keys: String): String {
+        for (k in keys) (this[k] as? JsonPrimitive)?.content
+            ?.takeIf { it.isNotBlank() && it != "null" }?.let { return it }
+        return ""
     }
 
     /**

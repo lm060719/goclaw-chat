@@ -7,6 +7,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -22,6 +24,8 @@ fun ExtraFeaturesScreen(
     onOpenSkills: () -> Unit,
     onOpenApprovals: () -> Unit,
     onOpenSessions: () -> Unit,
+    onOpenUsage: () -> Unit,
+    onOpenTraces: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -55,6 +59,20 @@ fun ExtraFeaturesScreen(
                 title = "会话管理",
                 subtitle = "浏览服务端会话，压缩超长历史、清空或删除",
                 onClick = onOpenSessions,
+            )
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.QueryStats,
+                title = "用量 & 费用",
+                subtitle = "查看 Token 消耗与费用统计",
+                onClick = onOpenUsage,
+            )
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.Insights,
+                title = "执行轨迹",
+                subtitle = "查看 Agent 运行的 LLM 调用轨迹",
+                onClick = onOpenTraces,
             )
 }
     }

@@ -31,6 +31,8 @@ data class SettingsUiState(
     val loadingProviders: Boolean = false,
     val loadingModels: Boolean = false,
     val applyingModel: Boolean = false,
+    val testingConnection: Boolean = false,
+    val gatewayOnline: Boolean? = null,
     val message: String? = null,
 )
 
@@ -108,6 +110,23 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun testConnection() {
+        val st = _state.value
+        if (st.baseUrl.isBlank() || st.apiKey.isBlank()) {
+            _state.value = st.copy(message = "请先填写后端地址和 API 密钥")
+            return
+        }
+        _state.value = st.copy(testingConnection = true)
+        viewModelScope.launch {
+            val version = runCatching { ws.gatewayVersion(snapshotSettings()) }.getOrNull()
+            _state.value = _state.value.copy(
+                testingConnection = false,
+                gatewayOnline = version != null,
+                message = if (version != null) "已连接 ✓ 网关 $version" else "连接失败，请检查地址/密钥/网络",
+            )
+        }
+    }
+
     /** Settings snapshot from the current form (so the user can query before saving). */
     private fun snapshotSettings(): GoClawSettings {
         val st = _state.value
@@ -176,6 +195,10 @@ class SettingsViewModel @Inject constructor(
 
     fun save() {
         val st = _state.value
+        if (st.model.isBlank()) {
+            _state.value = st.copy(message = "请先选择或填写模型")
+            return
+        }
         viewModelScope.launch {
             settingsStore.update(
                 GoClawSettings(

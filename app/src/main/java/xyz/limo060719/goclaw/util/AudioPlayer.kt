@@ -12,28 +12,30 @@ class AudioPlayer(private val context: Context) {
 
     private var player: MediaPlayer? = null
 
-    fun play(bytes: ByteArray) {
+    /** Plays the clip. Returns true if playback started, false if the bytes couldn't be played. */
+    fun play(bytes: ByteArray): Boolean {
         stop()
-        runCatching {
+        return runCatching {
             val file = File.createTempFile("tts_", ".audio", context.cacheDir)
             file.writeBytes(bytes)
-            player = MediaPlayer().apply {
-                setOnCompletionListener {
-                    runCatching { it.release() }
-                    file.delete()
-                    if (player === it) player = null
-                }
-                setOnErrorListener { mp, _, _ ->
-                    runCatching { mp.release() }
-                    file.delete()
-                    if (player === mp) player = null
-                    true
-                }
-                setDataSource(file.absolutePath)
-                prepare()
-                start()
+            val mp = MediaPlayer()
+            mp.setOnCompletionListener {
+                runCatching { it.release() }
+                file.delete()
+                if (player === it) player = null
             }
-        }.onFailure { stop() }
+            mp.setOnErrorListener { m, _, _ ->
+                runCatching { m.release() }
+                file.delete()
+                if (player === m) player = null
+                true
+            }
+            mp.setDataSource(file.absolutePath)
+            mp.prepare()
+            mp.start()
+            player = mp
+            true
+        }.getOrElse { stop(); false }
     }
 
     fun stop() {

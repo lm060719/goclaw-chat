@@ -186,13 +186,18 @@ class ChatViewModel @Inject constructor(
 
     /** Speaks a reply via backend TTS when enabled (falling back to on-device), else on-device. */
     private fun speakReply(text: String) {
-        if (ttsBackend) {
-            viewModelScope.launch {
-                val bytes = runCatching { repository.synthesizeSpeech(text) }.getOrNull()
-                if (bytes != null) audioPlayer.play(bytes) else speech.speak(text)
+        if (!ttsBackend) { speech.speak(text); return }
+        viewModelScope.launch {
+            val result = repository.synthesizeSpeech(text)
+            val bytes = result.getOrNull()
+            val played = bytes != null && audioPlayer.play(bytes)
+            if (!played) {
+                // Any failure (unreachable / non-audio / unplayable format) → on-device TTS, and
+                // surface the reason once so backend TTS problems are diagnosable.
+                speech.speak(text)
+                val why = result.exceptionOrNull()?.message ?: "音频无法播放"
+                _state.value = _state.value.copy(error = "后端 TTS 不可用（$why），已改用设备朗读")
             }
-        } else {
-            speech.speak(text)
         }
     }
 

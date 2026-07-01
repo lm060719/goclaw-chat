@@ -67,8 +67,23 @@ class SpeechManager @Inject constructor(
 
     fun speak(text: String) {
         if (text.isBlank()) return
-        ensureTts {
-            it.speak(text, TextToSpeech.QUEUE_FLUSH, null, "goclaw-${System.currentTimeMillis()}")
+        ensureTts { tts ->
+            applyLanguage(tts, text)
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "goclaw-${System.currentTimeMillis()}")
+        }
+    }
+
+    /** Picks the TTS language from the text so Chinese replies aren't read with an English voice. */
+    private fun applyLanguage(tts: TextToSpeech, text: String) {
+        val hasChinese = text.any { it.code in 0x4E00..0x9FFF }
+        val candidates = if (hasChinese) {
+            listOf(Locale.SIMPLIFIED_CHINESE, Locale.CHINESE, Locale("zh", "CN"))
+        } else {
+            listOf(Locale.getDefault(), Locale.ENGLISH)
+        }
+        for (loc in candidates) {
+            val r = tts.setLanguage(loc)
+            if (r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED) return
         }
     }
 
@@ -80,10 +95,8 @@ class SpeechManager @Inject constructor(
         val existing = tts
         if (existing != null) { onReady(existing); return }
         tts = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.getDefault()
-                tts?.let(onReady)
-            }
+            // Language is chosen per-utterance in applyLanguage() based on the text.
+            if (status == TextToSpeech.SUCCESS) tts?.let(onReady)
         }
     }
 

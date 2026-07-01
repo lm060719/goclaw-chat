@@ -65,11 +65,11 @@ class ChatRepository @Inject constructor(
         return api.uploadMedia(s, bytes, mimeType, filename).getOrNull()
     }
 
-    /** Synthesizes speech for [text] via the backend TTS endpoint; null on failure. */
-    suspend fun synthesizeSpeech(text: String): ByteArray? {
+    /** Synthesizes speech for [text] via the backend TTS endpoint (Result carries the failure reason). */
+    suspend fun synthesizeSpeech(text: String): Result<ByteArray> {
         val s = settingsStore.current()
-        if (!s.isConfigured || text.isBlank()) return null
-        return api.synthesizeTts(s, text).getOrNull()
+        if (!s.isConfigured || text.isBlank()) return Result.failure(IllegalStateException("未配置或空文本"))
+        return api.synthesizeTts(s, text)
     }
 
     /** Downloads a file from the server by its path. */

@@ -238,8 +238,14 @@ class GoClawApi @Inject constructor(
                         .post(payload.toRequestBody("application/json".toMediaTypeOrNull())).build()
                 }
                 http.client.newCall(req).execute().use { resp ->
-                    if (!resp.isSuccessful) error("HTTP ${resp.code}")
-                    resp.body?.bytes()?.takeIf { it.isNotEmpty() } ?: error("空响应")
+                    val ct = resp.body?.contentType()?.let { "${it.type}/${it.subtype}" }.orEmpty()
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}: ${resp.body?.string().orEmpty().take(160)}")
+                    val bytes = resp.body?.bytes()?.takeIf { it.isNotEmpty() } ?: error("空响应")
+                    // Reject JSON/text bodies (error payloads sometimes returned with 200) so callers fall back.
+                    if (ct.startsWith("application/json") || ct.startsWith("text/")) {
+                        error("非音频响应($ct)：${String(bytes).take(160)}")
+                    }
+                    bytes
                 }
             }
         }

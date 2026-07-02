@@ -600,88 +600,16 @@ class GoClawWsClient @Inject constructor(
         rpcBool(settings, "device.pair.revoke") { put("channel", channel); put("senderId", senderId) }
 
     /** Requests a pairing code via `device.pair.request`. Returns the code, or null on failure. */
-    suspend fun requestPairing(
-        settings: GoClawSettings,
-        channel: String,
-        chatId: String,
-    ): String? = suspendCancellableCoroutine { cont ->
-        val done = AtomicBoolean(false)
-        val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
-        val listener = object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                webSocket.send(connectFrame(settings))
-            }
-
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                runCatching {
-                    val obj = http.json.parseToJsonElement(text).jsonObject
-                    if (obj["type"]?.jsonPrimitive?.content != "res") return
-                    val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
-                    when (obj["id"]?.jsonPrimitive?.content) {
-                        "c" -> if (ok) webSocket.send(
-                            buildJsonObject {
-                                put("type", "req"); put("id", "p"); put("method", "device.pair.request")
-                                putJsonObject("params") { put("channel", channel); put("chatId", chatId) }
-                            }.toString()
-                        ) else finish(webSocket, null)
-                        "p" -> {
-                            val p = obj["payload"]?.jsonObject
-                            finish(webSocket, if (ok) strP(p, "code", "pairingCode", "pair_code", "pairCode") else null)
-                        }
-                    }
-                }
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
-                finish(webSocket, null)
-
-            private fun finish(webSocket: WebSocket, result: String?) {
-                webSocket.close(1000, null)
-                if (done.compareAndSet(false, true) && cont.isActive) cont.resume(result)
-            }
-        }
-        val ws = http.wsClient.newWebSocket(request, listener)
-        cont.invokeOnCancellation { ws.cancel() }
+    suspend fun requestPairing(settings: GoClawSettings, channel: String, chatId: String): String? {
+        val payload = rpcPayload(settings, "device.pair.request") {
+            put("channel", channel); put("chatId", chatId)
+        } as? JsonObject ?: return null
+        return strP(payload, "code", "pairingCode", "pair_code", "pairCode").ifBlank { null }
     }
 
     /** Lists pending and approved pairings via `device.pair.list`. Tolerant of payload shape. */
     suspend fun listPairings(settings: GoClawSettings): List<DevicePairing> =
-        suspendCancellableCoroutine { cont ->
-            val done = AtomicBoolean(false)
-            val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
-            val listener = object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) {
-                    webSocket.send(connectFrame(settings))
-                }
-
-                override fun onMessage(webSocket: WebSocket, text: String) {
-                    runCatching {
-                        val obj = http.json.parseToJsonElement(text).jsonObject
-                        if (obj["type"]?.jsonPrimitive?.content != "res") return
-                        val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
-                        when (obj["id"]?.jsonPrimitive?.content) {
-                            "c" -> if (ok) webSocket.send(
-                                buildJsonObject {
-                                    put("type", "req"); put("id", "l"); put("method", "device.pair.list")
-                                    putJsonObject("params") {}
-                                }.toString()
-                            ) else finish(webSocket, emptyList())
-                            "l" -> finish(webSocket, if (ok) parsePairings(obj["payload"]) else emptyList())
-                        }
-                    }
-                }
-
-                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
-                    finish(webSocket, emptyList())
-
-                private fun finish(webSocket: WebSocket, result: List<DevicePairing>) {
-                    webSocket.close(1000, null)
-                    if (done.compareAndSet(false, true) && cont.isActive) cont.resume(result)
-                }
-            }
-            val ws = http.wsClient.newWebSocket(request, listener)
-            cont.invokeOnCancellation { ws.cancel() }
-        }
+        parsePairings(rpcPayload(settings, "device.pair.list") {})
 
     /* ---- Heartbeat (heartbeat.*) ---- */
 

@@ -48,9 +48,9 @@ fun LogsScreen(
         scope.launch { snackbar.showSnackbar("已复制") }
     }
     LaunchedEffect(state.message) { state.message?.let { snackbar.showSnackbar(it); vm.clearMessage() } }
-    // Follow the tail as new lines arrive.
+    // Follow the tail as new lines arrive (instant jump — cheaper/smoother than animating per line).
     LaunchedEffect(state.lines.size) {
-        if (state.lines.isNotEmpty()) listState.animateScrollToItem(state.lines.lastIndex)
+        if (state.lines.isNotEmpty()) listState.scrollToItem(state.lines.lastIndex)
     }
 
     Scaffold(

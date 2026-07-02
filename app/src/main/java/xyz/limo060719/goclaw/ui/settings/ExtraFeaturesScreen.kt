@@ -2,6 +2,8 @@ package xyz.limo060719.goclaw.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -10,6 +12,8 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.VerifiedUser
@@ -32,6 +36,8 @@ fun ExtraFeaturesScreen(
     onOpenBackendSkills: () -> Unit,
     onOpenPairing: () -> Unit,
     onOpenLogs: () -> Unit,
+    onOpenHeartbeat: () -> Unit,
+    onOpenApiKeys: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -45,7 +51,12 @@ fun ExtraFeaturesScreen(
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        Column(
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+        ) {
             FeatureRow(
                 icon = Icons.Filled.Extension,
                 title = "技能（本地注入）",
@@ -100,6 +111,20 @@ fun ExtraFeaturesScreen(
                 title = "实时日志",
                 subtitle = "实时查看后端日志流，可按级别过滤",
                 onClick = onOpenLogs,
+            )
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.MonitorHeart,
+                title = "心跳 Heartbeat",
+                subtitle = "配置定时心跳、编辑 HEARTBEAT.md、查看执行日志",
+                onClick = onOpenHeartbeat,
+            )
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.Key,
+                title = "API Keys",
+                subtitle = "创建、查看与撤销后端 API 密钥",
+                onClick = onOpenApiKeys,
             )
 }
     }

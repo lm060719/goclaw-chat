@@ -9,6 +9,7 @@ import kotlin.coroutines.resume
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -63,6 +64,45 @@ data class DevicePairing(
     /** Stable identity for list keys (code for pending, channel:senderId for approved). */
     val stableKey: String get() = code.ifBlank { "$channel:$senderId" }
 }
+
+/** An agent's heartbeat configuration (heartbeat.get / heartbeat.set). */
+data class HeartbeatConfig(
+    val enabled: Boolean = false,
+    val intervalSec: Int = 300,
+    val prompt: String = "",
+    val providerName: String = "",
+    val model: String = "",
+)
+
+/** One heartbeat execution log entry (heartbeat.logs). */
+data class HeartbeatLog(
+    val id: String = "",
+    val status: String = "",
+    val message: String = "",
+    val createdAt: String = "",
+)
+
+/** A heartbeat notification delivery target (heartbeat.targets). */
+data class HeartbeatTarget(
+    val channel: String = "",
+    val target: String = "",
+    val label: String = "",
+)
+
+/** An API key (api_keys.list). The raw secret is only ever returned once, at creation. */
+data class ApiKeyInfo(
+    val id: String,
+    val name: String = "",
+    val scopes: List<String> = emptyList(),
+    val prefix: String = "",
+    val ownerId: String = "",
+    val createdAt: String = "",
+    val expiresAt: String = "",
+    val revoked: Boolean = false,
+)
+
+/** Result of api_keys.create: the new key's id and its one-time raw secret (field `key`). */
+data class CreatedApiKey(val id: String, val key: String)
 
 /** A single entry from the live server log stream (logs.tail). */
 data class LogLine(
@@ -642,6 +682,87 @@ class GoClawWsClient @Inject constructor(
             cont.invokeOnCancellation { ws.cancel() }
         }
 
+    /* ---- Heartbeat (heartbeat.*) ---- */
+
+    /** Reads an agent's heartbeat config via `heartbeat.get`. */
+    suspend fun getHeartbeat(settings: GoClawSettings, agentId: String): HeartbeatConfig? =
+        parseHeartbeatConfig(rpcPayload(settings, "heartbeat.get") { put("agentId", agentId) })
+
+    /** Creates/updates an agent's heartbeat config via `heartbeat.set` (intervalSec is floored at 300). */
+    suspend fun setHeartbeat(settings: GoClawSettings, agentId: String, config: HeartbeatConfig): Boolean =
+        rpcBool(settings, "heartbeat.set") {
+            put("agentId", agentId)
+            put("enabled", config.enabled)
+            put("intervalSec", config.intervalSec.coerceAtLeast(300))
+            if (config.prompt.isNotBlank()) put("prompt", config.prompt)
+            if (config.providerName.isNotBlank()) put("providerName", config.providerName)
+            if (config.model.isNotBlank()) put("model", config.model)
+        }
+
+    /** Enables/disables an agent's heartbeat via `heartbeat.toggle`. */
+    suspend fun toggleHeartbeat(settings: GoClawSettings, agentId: String, enabled: Boolean): Boolean =
+        rpcBool(settings, "heartbeat.toggle") { put("agentId", agentId); put("enabled", enabled) }
+
+    /** Triggers one heartbeat run immediately via `heartbeat.test`. */
+    suspend fun testHeartbeat(settings: GoClawSettings, agentId: String): Boolean =
+        rpcBool(settings, "heartbeat.test") { put("agentId", agentId) }
+
+    /** Lists heartbeat execution logs via `heartbeat.logs`. */
+    suspend fun heartbeatLogs(
+        settings: GoClawSettings,
+        agentId: String,
+        limit: Int = 50,
+        offset: Int = 0,
+    ): List<HeartbeatLog> = parseHeartbeatLogs(
+        rpcPayload(settings, "heartbeat.logs") {
+            put("agentId", agentId); put("limit", limit); if (offset > 0) put("offset", offset)
+        }
+    )
+
+    /** Reads the agent's HEARTBEAT.md context file via `heartbeat.checklist.get`. */
+    suspend fun getHeartbeatChecklist(settings: GoClawSettings, agentId: String): String? =
+        rpcPayload(settings, "heartbeat.checklist.get") { put("agentId", agentId) }?.let { parseChecklist(it) }
+
+    /** Writes/replaces the agent's HEARTBEAT.md context file via `heartbeat.checklist.set`. */
+    suspend fun setHeartbeatChecklist(settings: GoClawSettings, agentId: String, content: String): Boolean =
+        rpcBool(settings, "heartbeat.checklist.set") { put("agentId", agentId); put("content", content) }
+
+    /** Lists heartbeat notification delivery targets via `heartbeat.targets`. */
+    suspend fun heartbeatTargets(settings: GoClawSettings, agentId: String): List<HeartbeatTarget> =
+        parseHeartbeatTargets(rpcPayload(settings, "heartbeat.targets") { put("agentId", agentId) })
+
+    /* ---- API keys (api_keys.*) ---- */
+
+    /** Lists API keys via `api_keys.list`. */
+    suspend fun listApiKeys(settings: GoClawSettings): List<ApiKeyInfo> =
+        parseApiKeys(rpcPayload(settings, "api_keys.list") {})
+
+    /**
+     * Creates an API key via `api_keys.create`. Returns the raw secret, which the server only ever
+     * returns once (at creation) — or null on failure.
+     */
+    suspend fun createApiKey(
+        settings: GoClawSettings,
+        name: String,
+        scopes: List<String>,
+        expiresIn: Int? = null,
+    ): CreatedApiKey? {
+        val payload = rpcPayload(settings, "api_keys.create") {
+            put("name", name)
+            putJsonArray("scopes") { scopes.forEach { add(it) } }
+            if (expiresIn != null) put("expires_in", expiresIn)
+        } as? JsonObject ?: return null
+        val raw = strP(payload, "key", "apiKey", "api_key", "raw", "rawKey", "token", "secret")
+            .ifBlank { strP(payload["data"] as? JsonObject, "key", "apiKey", "api_key", "token") }
+            .ifBlank { strP(payload["key"] as? JsonObject, "value", "raw", "secret") }
+        if (raw.isBlank()) return null
+        return CreatedApiKey(id = strP(payload, "id", "keyId", "key_id"), key = raw)
+    }
+
+    /** Revokes an API key via `api_keys.revoke`. */
+    suspend fun revokeApiKey(settings: GoClawSettings, id: String): Boolean =
+        rpcBool(settings, "api_keys.revoke") { put("id", id) }
+
     /** Aborts the in-progress run for a session via `chat.abort`. Best-effort. */
     suspend fun abortRun(settings: GoClawSettings, sessionKey: String): Boolean =
         rpcBool(settings, "chat.abort") { put("sessionKey", sessionKey) }
@@ -789,6 +910,48 @@ class GoClawWsClient @Inject constructor(
         cont.invokeOnCancellation { ws.cancel() }
     }
 
+    /** connect → single RPC `method` with the given params → returns the response `payload` (or null). */
+    private suspend fun rpcPayload(
+        settings: GoClawSettings,
+        method: String,
+        params: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit,
+    ): kotlinx.serialization.json.JsonElement? = suspendCancellableCoroutine { cont ->
+        val done = AtomicBoolean(false)
+        val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
+        val listener = object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                webSocket.send(connectFrame(settings))
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                runCatching {
+                    val obj = http.json.parseToJsonElement(text).jsonObject
+                    if (obj["type"]?.jsonPrimitive?.content != "res") return
+                    val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
+                    when (obj["id"]?.jsonPrimitive?.content) {
+                        "c" -> if (ok) webSocket.send(
+                            buildJsonObject {
+                                put("type", "req"); put("id", "x"); put("method", method)
+                                putJsonObject("params", params)
+                            }.toString()
+                        ) else finish(webSocket, null)
+                        "x" -> finish(webSocket, if (ok) obj["payload"] else null)
+                    }
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                finish(webSocket, null)
+
+            private fun finish(webSocket: WebSocket, result: kotlinx.serialization.json.JsonElement?) {
+                webSocket.close(1000, null)
+                if (done.compareAndSet(false, true) && cont.isActive) cont.resume(result)
+            }
+        }
+        val ws = http.wsClient.newWebSocket(request, listener)
+        cont.invokeOnCancellation { ws.cancel() }
+    }
+
     /** The standard `connect` handshake frame as a JSON string. */
     private fun connectFrame(settings: GoClawSettings): String =
         buildJsonObject {
@@ -900,6 +1063,95 @@ class GoClawWsClient @Inject constructor(
             source = strP(inner, "source", "logger", "component", "module", "tag")
                 .ifBlank { strP(payload, "source", "logger", "component", "module", "tag") },
         )
+    }
+
+    /** Tolerant parse of a heartbeat.get payload (may be wrapped under "heartbeat"/"config"). */
+    private fun parseHeartbeatConfig(el: kotlinx.serialization.json.JsonElement?): HeartbeatConfig? {
+        val o = el as? JsonObject ?: return null
+        val h = (o["heartbeat"] as? JsonObject) ?: (o["config"] as? JsonObject) ?: o
+        return HeartbeatConfig(
+            enabled = boolP(h, "enabled", "is_enabled", "active"),
+            intervalSec = strP(h, "intervalSec", "interval_sec", "interval").toIntOrNull() ?: 300,
+            prompt = strA(h, "prompt", "message", "instruction"),
+            providerName = strP(h, "providerName", "provider_name", "provider"),
+            model = strP(h, "model", "model_id", "modelId"),
+        )
+    }
+
+    /** Tolerant parse of a heartbeat.logs payload (bare array or {logs|runs|items|data}). */
+    private fun parseHeartbeatLogs(el: kotlinx.serialization.json.JsonElement?): List<HeartbeatLog> {
+        val arr = when (el) {
+            is JsonArray -> el
+            is JsonObject -> (el["logs"] ?: el["runs"] ?: el["items"] ?: el["data"]) as? JsonArray
+            else -> null
+        } ?: return emptyList()
+        return arr.mapNotNull { it as? JsonObject }.map { o ->
+            HeartbeatLog(
+                id = strP(o, "id", "runId", "run_id"),
+                status = strP(o, "status", "state", "result"),
+                message = strA(o, "message", "output", "summary", "detail", "error", "text"),
+                createdAt = strP(o, "createdAt", "created_at", "ranAt", "ran_at", "time", "timestamp"),
+            )
+        }
+    }
+
+    /** Tolerant parse of a heartbeat.targets payload (array of objects or plain strings). */
+    private fun parseHeartbeatTargets(el: kotlinx.serialization.json.JsonElement?): List<HeartbeatTarget> {
+        val arr = when (el) {
+            is JsonArray -> el
+            is JsonObject -> (el["targets"] ?: el["items"] ?: el["data"]) as? JsonArray
+            else -> null
+        } ?: return emptyList()
+        val objects = arr.mapNotNull { it as? JsonObject }.map { o ->
+            HeartbeatTarget(
+                channel = strP(o, "channel", "type", "kind"),
+                target = strA(o, "target", "chatId", "chat_id", "address", "to", "id"),
+                label = strA(o, "label", "name", "description"),
+            )
+        }
+        if (objects.isNotEmpty()) return objects
+        return arr.mapNotNull { (it as? JsonPrimitive)?.content?.takeIf { c -> c.isNotBlank() } }
+            .map { HeartbeatTarget(target = it) }
+    }
+
+    /** Extracts the checklist markdown from a heartbeat.checklist.get payload. */
+    private fun parseChecklist(el: kotlinx.serialization.json.JsonElement): String = when (el) {
+        is JsonPrimitive -> el.content
+        is JsonObject -> strA(el, "content", "text", "markdown", "checklist", "body")
+        else -> ""
+    }
+
+    /** Tolerant parse of an api_keys.list payload (bare array or {keys|api_keys|items|data}). */
+    private fun parseApiKeys(el: kotlinx.serialization.json.JsonElement?): List<ApiKeyInfo> {
+        val arr = when (el) {
+            is JsonArray -> el
+            is JsonObject -> (el["keys"] ?: el["apiKeys"] ?: el["api_keys"]
+                ?: el["items"] ?: el["data"]) as? JsonArray
+            else -> null
+        } ?: return emptyList()
+        return arr.mapNotNull { it as? JsonObject }.mapNotNull { o ->
+            val id = strP(o, "id", "keyId", "key_id")
+            if (id.isBlank()) return@mapNotNull null
+            val scopes = (o["scopes"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }.orEmpty()
+            ApiKeyInfo(
+                id = id,
+                name = strA(o, "name", "label", "description"),
+                scopes = scopes,
+                prefix = strP(o, "prefix", "keyPrefix", "key_prefix", "masked", "preview"),
+                ownerId = strP(o, "ownerId", "owner_id", "owner", "created_by", "tenant_id"),
+                createdAt = strP(o, "createdAt", "created_at"),
+                expiresAt = strP(o, "expiresAt", "expires_at", "expiry"),
+                revoked = boolP(o, "revoked", "is_revoked") ||
+                    strP(o, "status", "state").equals("revoked", ignoreCase = true),
+            )
+        }
+    }
+
+    /** First boolean-parseable value among [keys]; false if none. */
+    private fun boolP(o: JsonObject?, vararg keys: String): Boolean {
+        if (o == null) return false
+        for (k in keys) (o[k] as? JsonPrimitive)?.content?.toBooleanStrictOrNull()?.let { return it }
+        return false
     }
 
     /** First non-blank JSON-primitive value among [keys]. */

@@ -20,9 +20,11 @@ import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.ui.chat.ChatScreen
 import xyz.limo060719.goclaw.ui.settings.AiProviderScreen
 import xyz.limo060719.goclaw.ui.settings.ApprovalScreen
+import xyz.limo060719.goclaw.ui.settings.ApiKeysScreen
 import xyz.limo060719.goclaw.ui.settings.BackendSkillsScreen
 import xyz.limo060719.goclaw.ui.settings.DevicePairingScreen
 import xyz.limo060719.goclaw.ui.settings.ExtraFeaturesScreen
+import xyz.limo060719.goclaw.ui.settings.HeartbeatScreen
 import xyz.limo060719.goclaw.ui.settings.LogsScreen
 import xyz.limo060719.goclaw.ui.settings.SessionsScreen
 import xyz.limo060719.goclaw.ui.settings.SettingsScreen
@@ -67,6 +69,8 @@ class MainActivity : ComponentActivity() {
                                 onOpenBackendSkills = { nav.navigate("backend_skills") },
                                 onOpenPairing = { nav.navigate("pairing") },
                                 onOpenLogs = { nav.navigate("logs") },
+                                onOpenHeartbeat = { nav.navigate("heartbeat") },
+                                onOpenApiKeys = { nav.navigate("api_keys") },
                             )
                         }
                         composable("approvals") {
@@ -89,6 +93,12 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("logs") {
                             LogsScreen(onBack = { nav.popBackStack() })
+                        }
+                        composable("heartbeat") {
+                            HeartbeatScreen(onBack = { nav.popBackStack() })
+                        }
+                        composable("api_keys") {
+                            ApiKeysScreen(onBack = { nav.popBackStack() })
                         }
                         composable("settings") {
                             SettingsScreen(

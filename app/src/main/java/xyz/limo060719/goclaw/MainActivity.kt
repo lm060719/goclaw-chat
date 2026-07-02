@@ -23,6 +23,7 @@ import xyz.limo060719.goclaw.ui.settings.ApprovalScreen
 import xyz.limo060719.goclaw.ui.settings.BackendSkillsScreen
 import xyz.limo060719.goclaw.ui.settings.DevicePairingScreen
 import xyz.limo060719.goclaw.ui.settings.ExtraFeaturesScreen
+import xyz.limo060719.goclaw.ui.settings.LogsScreen
 import xyz.limo060719.goclaw.ui.settings.SessionsScreen
 import xyz.limo060719.goclaw.ui.settings.SettingsScreen
 import xyz.limo060719.goclaw.ui.settings.SkillsScreen
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenTraces = { nav.navigate("traces") },
                                 onOpenBackendSkills = { nav.navigate("backend_skills") },
                                 onOpenPairing = { nav.navigate("pairing") },
+                                onOpenLogs = { nav.navigate("logs") },
                             )
                         }
                         composable("approvals") {
@@ -84,6 +86,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("pairing") {
                             DevicePairingScreen(onBack = { nav.popBackStack() })
+                        }
+                        composable("logs") {
+                            LogsScreen(onBack = { nav.popBackStack() })
                         }
                         composable("settings") {
                             SettingsScreen(

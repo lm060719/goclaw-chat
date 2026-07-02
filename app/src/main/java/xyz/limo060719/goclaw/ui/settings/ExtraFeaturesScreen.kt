@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.QueryStats
+import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ fun ExtraFeaturesScreen(
     onOpenTraces: () -> Unit,
     onOpenBackendSkills: () -> Unit,
     onOpenPairing: () -> Unit,
+    onOpenLogs: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -91,6 +93,13 @@ fun ExtraFeaturesScreen(
                 title = "设备配对",
                 subtitle = "生成配对码，批准、撤销跨渠道设备绑定",
                 onClick = onOpenPairing,
+            )
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.Subject,
+                title = "实时日志",
+                subtitle = "实时查看后端日志流，可按级别过滤",
+                onClick = onOpenLogs,
             )
 }
     }

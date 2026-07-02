@@ -64,6 +64,14 @@ data class DevicePairing(
     val stableKey: String get() = code.ifBlank { "$channel:$senderId" }
 }
 
+/** A single entry from the live server log stream (logs.tail). */
+data class LogLine(
+    val level: String = "",
+    val message: String = "",
+    val timestamp: String = "",
+    val source: String = "",
+)
+
 /** A server-side chat session (sessions.list). */
 data class SessionSummary(
     val key: String,
@@ -257,6 +265,66 @@ class GoClawWsClient @Inject constructor(
 
         val ws = http.wsClient.newWebSocket(request, listener)
         awaitClose { ws.cancel() }
+    }
+
+    /**
+     * Streams live server logs via `logs.tail`. Unlike the one-shot RPCs, this keeps the socket
+     * open: connect → `logs.tail{action:"start"}` → emit each pushed log event → on cancellation
+     * `logs.tail{action:"stop"}` then close. [level] optionally filters by minimum severity.
+     */
+    fun tailLogs(settings: GoClawSettings, level: String? = null): Flow<LogLine> = callbackFlow {
+        val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
+        val listener = object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                webSocket.send(connectFrame(settings))
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                runCatching {
+                    val obj = http.json.parseToJsonElement(text).jsonObject
+                    when (obj["type"]?.jsonPrimitive?.content) {
+                        "res" -> {
+                            if (obj["id"]?.jsonPrimitive?.content == "c") {
+                                if (obj["ok"]?.jsonPrimitive?.booleanOrNull == true) {
+                                    webSocket.send(
+                                        buildJsonObject {
+                                            put("type", "req"); put("id", "lt"); put("method", "logs.tail")
+                                            putJsonObject("params") {
+                                                put("action", "start")
+                                                if (!level.isNullOrBlank()) put("level", level)
+                                            }
+                                        }.toString()
+                                    )
+                                } else {
+                                    close(IllegalStateException(errorMessage(obj) ?: "连接失败"))
+                                }
+                            }
+                        }
+                        "event" -> parseLogEvent(obj)?.let { trySend(it) }
+                    }
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { close(t) }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                webSocket.close(1000, null); close()
+            }
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { close() }
+        }
+
+        val ws = http.wsClient.newWebSocket(request, listener)
+        awaitClose {
+            // Politely tell the server to stop the stream before dropping the socket.
+            runCatching {
+                ws.send(
+                    buildJsonObject {
+                        put("type", "req"); put("id", "ls"); put("method", "logs.tail")
+                        putJsonObject("params") { put("action", "stop") }
+                    }.toString()
+                )
+            }
+            ws.cancel()
+        }
     }
 
     /** Fetches the server-side transcript for a session via `chat.history`. */
@@ -809,6 +877,29 @@ class GoClawWsClient @Inject constructor(
             }
             else -> emptyList()
         }
+    }
+
+    /**
+     * Tolerant parse of a pushed log event. The gateway's frame shape for log lines isn't
+     * documented, so we accept any event whose name contains "log" and read the fields from
+     * `payload` (or a nested `payload.payload`, matching the agent-event convention).
+     */
+    private fun parseLogEvent(obj: JsonObject): LogLine? {
+        val event = obj["event"]?.jsonPrimitive?.content ?: return null
+        if (!event.contains("log", ignoreCase = true)) return null
+        val payload = obj["payload"]?.jsonObject
+        val inner = payload?.get("payload")?.jsonObject ?: payload
+        val message = strA(inner, "message", "msg", "text", "line", "content")
+            .ifBlank { strA(payload, "message", "msg", "text", "line", "content") }
+        if (message.isBlank()) return null
+        return LogLine(
+            level = strP(inner, "level", "severity", "lvl").ifBlank { strP(payload, "level", "severity", "lvl") },
+            message = message,
+            timestamp = strP(inner, "time", "timestamp", "ts", "at")
+                .ifBlank { strP(payload, "time", "timestamp", "ts", "at") },
+            source = strP(inner, "source", "logger", "component", "module", "tag")
+                .ifBlank { strP(payload, "source", "logger", "component", "module", "tag") },
+        )
     }
 
     /** First non-blank JSON-primitive value among [keys]. */

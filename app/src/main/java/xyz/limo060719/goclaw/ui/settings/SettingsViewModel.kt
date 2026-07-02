@@ -196,10 +196,7 @@ class SettingsViewModel @Inject constructor(
 
     fun save() {
         val st = _state.value
-        if (st.model.isBlank()) {
-            _state.value = st.copy(message = "请先选择或填写模型")
-            return
-        }
+        // Model is optional here — it's configured server-side on the agent; chat.send never sends it.
         viewModelScope.launch {
             settingsStore.update(
                 GoClawSettings(

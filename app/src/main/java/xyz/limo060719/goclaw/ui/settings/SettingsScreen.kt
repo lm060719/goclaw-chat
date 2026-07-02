@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,8 @@ fun AiProviderScreen(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    // Model/provider config is hidden by default — the model is already configured on the backend.
+    var showProviderConfig by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); vm.clearMessage() }
@@ -97,17 +100,20 @@ fun AiProviderScreen(
                     onRemove = vm::removeSavedAgent,
                 )
             }
-            OutlinedTextField(
-                value = state.model,
-                onValueChange = vm::onModel,
-                label = { Text("模型（必填）") },
-                isError = state.model.isBlank(),
-                supportingText = if (state.model.isBlank()) {
-                    { Text("必须指定模型，否则无法连接") }
-                } else null,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // Model is already configured on the backend; the field only shows when modifying.
+            if (showProviderConfig) {
+                OutlinedTextField(
+                    value = state.model,
+                    onValueChange = vm::onModel,
+                    label = { Text("模型（必填）") },
+                    isError = state.model.isBlank(),
+                    supportingText = if (state.model.isBlank()) {
+                        { Text("必须指定模型，否则无法连接") }
+                    } else null,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = vm::testConnection, enabled = !state.testingConnection) {
@@ -170,13 +176,24 @@ fun AiProviderScreen(
             }
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
-            ModelConfigSection(
-                state = state,
-                onLoadProviders = vm::fetchProviders,
-                onSelectProvider = vm::selectProvider,
-                onSelectModel = vm::selectModel,
-                onApply = vm::applyModelToAgent,
-            )
+            if (showProviderConfig) {
+                ModelConfigSection(
+                    state = state,
+                    onLoadProviders = vm::fetchProviders,
+                    onSelectProvider = vm::selectProvider,
+                    onSelectModel = vm::selectModel,
+                    onApply = vm::applyModelToAgent,
+                )
+            } else {
+                OutlinedButton(
+                    onClick = { showProviderConfig = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("修改供应商")
+                }
+            }
 
             Spacer(Modifier.height(4.dp))
             Button(onClick = vm::save, modifier = Modifier.fillMaxWidth()) { Text("保存") }

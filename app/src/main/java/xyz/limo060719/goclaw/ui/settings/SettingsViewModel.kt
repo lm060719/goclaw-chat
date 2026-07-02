@@ -96,7 +96,8 @@ class SettingsViewModel @Inject constructor(
                 apiKey = st.apiKey.trim(),
                 userId = st.userId.trim(),
             )
-            api.agents(s)
+            // WS agents.list returns all agents; REST /v1/agents is a filtered subset → fallback only.
+            runCatching { ws.listAgents(s).ifEmpty { api.agents(s).getOrElse { emptyList() } } }
                 .onSuccess { list ->
                     _state.value = _state.value.copy(
                         agents = list,

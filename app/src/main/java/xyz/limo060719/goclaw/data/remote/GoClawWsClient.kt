@@ -23,6 +23,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import xyz.limo060719.goclaw.data.GoClawSettings
+import xyz.limo060719.goclaw.data.remote.dto.AgentInfo
 import javax.inject.Inject
 
 /** A message from the server-side session transcript (chat.history). */
@@ -165,7 +166,7 @@ class GoClawWsClient @Inject constructor(
                     put("type", "req"); put("id", "c"); put("method", "connect")
                     putJsonObject("params") {
                         put("token", settings.apiKey)
-                        put("user_id", settings.userId.ifBlank { "app" })
+                        put("user_id", settings.userId.ifBlank { "system" })
                     }
                 }
                 webSocket.send(connect.toString())
@@ -382,7 +383,7 @@ class GoClawWsClient @Inject constructor(
                         put("type", "req"); put("id", "c"); put("method", "connect")
                         putJsonObject("params") {
                             put("token", settings.apiKey)
-                            put("user_id", settings.userId.ifBlank { "app" })
+                            put("user_id", settings.userId.ifBlank { "system" })
                         }
                     }.toString()
                 )
@@ -447,7 +448,7 @@ class GoClawWsClient @Inject constructor(
                         put("type", "req"); put("id", "c"); put("method", "connect")
                         putJsonObject("params") {
                             put("token", settings.apiKey)
-                            put("user_id", settings.userId.ifBlank { "app" })
+                            put("user_id", "system")  // management op: connect as owner, not the chat user
                         }
                     }.toString()
                 )
@@ -494,7 +495,7 @@ class GoClawWsClient @Inject constructor(
                             put("type", "req"); put("id", "c"); put("method", "connect")
                             putJsonObject("params") {
                                 put("token", settings.apiKey)
-                                put("user_id", settings.userId.ifBlank { "app" })
+                                put("user_id", "system")  // management op: connect as owner, not the chat user
                             }
                         }.toString()
                     )
@@ -545,7 +546,7 @@ class GoClawWsClient @Inject constructor(
                         put("type", "req"); put("id", "c"); put("method", "connect")
                         putJsonObject("params") {
                             put("token", settings.apiKey)
-                            put("user_id", settings.userId.ifBlank { "app" })
+                            put("user_id", "system")  // management op: connect as owner, not the chat user
                         }
                     }.toString()
                 )
@@ -587,7 +588,7 @@ class GoClawWsClient @Inject constructor(
     suspend fun approvePairing(settings: GoClawSettings, code: String, approvedBy: String): Boolean =
         rpcBool(settings, "device.pair.approve") {
             put("code", code)
-            put("approvedBy", approvedBy.ifBlank { settings.userId.ifBlank { "app" } })
+            put("approvedBy", approvedBy.ifBlank { settings.userId.ifBlank { "system" } })
         }
 
     /** Rejects a pending pairing via `device.pair.deny`. */
@@ -762,6 +763,22 @@ class GoClawWsClient @Inject constructor(
     /** Revokes an API key via `api_keys.revoke`. */
     suspend fun revokeApiKey(settings: GoClawSettings, id: String): Boolean =
         rpcBool(settings, "api_keys.revoke") { put("id", id) }
+
+    /**
+     * Lists agents via WS `agents.list`. The REST `/v1/agents` only returns a filtered subset
+     * (often just the default agent), so the dashboard/heartbeat use this to see all agents.
+     */
+    suspend fun listAgents(settings: GoClawSettings): List<AgentInfo> {
+        // connectFrame connects as "system", so this returns ALL agents regardless of the chat user_id.
+        val payload = rpcPayload(settings, "agents.list") {} ?: return emptyList()
+        val arr = when (payload) {
+            is JsonArray -> payload
+            is JsonObject -> (payload["agents"] ?: payload["data"] ?: payload["items"]
+                ?: payload.values.firstOrNull { it is JsonArray }) as? JsonArray
+            else -> null
+        } ?: return emptyList()
+        return arr.mapNotNull { runCatching { http.json.decodeFromJsonElement(AgentInfo.serializer(), it) }.getOrNull() }
+    }
 
     /** Aborts the in-progress run for a session via `chat.abort`. Best-effort. */
     suspend fun abortRun(settings: GoClawSettings, sessionKey: String): Boolean =
@@ -952,13 +969,21 @@ class GoClawWsClient @Inject constructor(
         cont.invokeOnCancellation { ws.cancel() }
     }
 
-    /** The standard `connect` handshake frame as a JSON string. */
+    /**
+     * The `connect` handshake for MANAGEMENT/admin RPCs (agents, heartbeat, api_keys, pairing,
+     * sessions, approvals, logs, status). Always connects as the gateway owner user "system" so
+     * listings aren't filtered by the chat user_id — the gateway otherwise scopes e.g. `agents.list`
+     * to the connected user's own agents. Chat/history use their own inline connect frames with the
+     * configured `user_id` (that setting only distinguishes chat users).
+     */
     private fun connectFrame(settings: GoClawSettings): String =
         buildJsonObject {
             put("type", "req"); put("id", "c"); put("method", "connect")
             putJsonObject("params") {
                 put("token", settings.apiKey)
-                put("user_id", settings.userId.ifBlank { "app" })
+                put("user_id", "system")
+                put("protocol", 3)
+                put("protocolVersion", 3)
             }
         }.toString()
 
@@ -1018,9 +1043,9 @@ class GoClawWsClient @Inject constructor(
                 channel = strP(o, "channel"),
                 chatId = strP(o, "chatId", "chat_id"),
                 senderId = strP(o, "senderId", "sender_id", "sender"),
-                approvedBy = strP(o, "approvedBy", "approved_by"),
+                approvedBy = strP(o, "approvedBy", "approved_by", "paired_by"),
                 status = strP(o, "status", "state").ifBlank { statusHint },
-                createdAt = strP(o, "createdAt", "created_at", "requestedAt", "requested_at"),
+                createdAt = strP(o, "createdAt", "created_at", "requestedAt", "requested_at", "paired_at"),
             )
             return if (pairing.code.isBlank() && pairing.channel.isBlank() && pairing.senderId.isBlank()) null else pairing
         }
@@ -1028,7 +1053,8 @@ class GoClawWsClient @Inject constructor(
             is JsonArray -> payloadEl.mapNotNull { mapEntry(it, "") }
             is JsonObject -> {
                 val pending = payloadEl["pending"] as? JsonArray
-                val approved = payloadEl["approved"] as? JsonArray
+                // Real gateway uses "paired" for approved pairings; "approved" kept as fallback.
+                val approved = (payloadEl["paired"] ?: payloadEl["approved"]) as? JsonArray
                 if (pending != null || approved != null) {
                     pending.orEmpty().mapNotNull { mapEntry(it, "pending") } +
                         approved.orEmpty().mapNotNull { mapEntry(it, "approved") }

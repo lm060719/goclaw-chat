@@ -112,9 +112,13 @@ class HeartbeatViewModel @Inject constructor(
                 return@launch
             }
             _state.value = _state.value.copy(loadingAgents = true)
-            api.agents(s)
+            // WS agents.list returns all agents; REST /v1/agents is a filtered subset → fallback only.
+            runCatching { ws.listAgents(s).ifEmpty { api.agents(s).getOrElse { emptyList() } } }
                 .onSuccess { list ->
-                    _state.value = _state.value.copy(agents = list, loadingAgents = false)
+                    _state.value = _state.value.copy(
+                        agents = list, loadingAgents = false,
+                        message = if (list.isEmpty()) "未发现 Agent" else null,
+                    )
                     // Auto-select the agent from settings, else the first one.
                     val preferred = s.agent.ifBlank { list.firstOrNull()?.resolvedKey.orEmpty() }
                     if (preferred.isNotBlank() && _state.value.selectedAgent.isBlank()) selectAgent(preferred)

@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Insights
@@ -28,6 +29,7 @@ fun ExtraFeaturesScreen(
     onOpenUsage: () -> Unit,
     onOpenTraces: () -> Unit,
     onOpenBackendSkills: () -> Unit,
+    onOpenPairing: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -82,6 +84,13 @@ fun ExtraFeaturesScreen(
                 title = "执行轨迹",
                 subtitle = "查看 Agent 运行的 LLM 调用轨迹",
                 onClick = onOpenTraces,
+            )
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            FeatureRow(
+                icon = Icons.Filled.Devices,
+                title = "设备配对",
+                subtitle = "生成配对码，批准、撤销跨渠道设备绑定",
+                onClick = onOpenPairing,
             )
 }
     }

@@ -44,6 +44,26 @@ data class ExecApproval(
     val reason: String = "",
 )
 
+/**
+ * A device pairing entry (device.pair.list). A pairing may be pending (has a [code] awaiting
+ * approval) or approved (bound to a [channel]/[senderId], which is what `device.pair.revoke` needs).
+ */
+data class DevicePairing(
+    val code: String = "",
+    val channel: String = "",
+    val chatId: String = "",
+    val senderId: String = "",
+    val approvedBy: String = "",
+    /** "pending" or "approved" (best-effort — derived from the payload or its containing array). */
+    val status: String = "",
+    val createdAt: String = "",
+) {
+    val isApproved: Boolean get() = status.contains("approv", ignoreCase = true)
+    val isPending: Boolean get() = status.contains("pend", ignoreCase = true)
+    /** Stable identity for list keys (code for pending, channel:senderId for approved). */
+    val stableKey: String get() = code.ifBlank { "$channel:$senderId" }
+}
+
 /** A server-side chat session (sessions.list). */
 data class SessionSummary(
     val key: String,
@@ -455,6 +475,105 @@ class GoClawWsClient @Inject constructor(
         cont.invokeOnCancellation { ws.cancel() }
     }
 
+    /** Approves a pending pairing via `device.pair.approve`. */
+    suspend fun approvePairing(settings: GoClawSettings, code: String, approvedBy: String): Boolean =
+        rpcBool(settings, "device.pair.approve") {
+            put("code", code)
+            put("approvedBy", approvedBy.ifBlank { settings.userId.ifBlank { "app" } })
+        }
+
+    /** Rejects a pending pairing via `device.pair.deny`. */
+    suspend fun denyPairing(settings: GoClawSettings, code: String): Boolean =
+        rpcBool(settings, "device.pair.deny") { put("code", code) }
+
+    /** Revokes an approved pairing via `device.pair.revoke`. */
+    suspend fun revokePairing(settings: GoClawSettings, channel: String, senderId: String): Boolean =
+        rpcBool(settings, "device.pair.revoke") { put("channel", channel); put("senderId", senderId) }
+
+    /** Requests a pairing code via `device.pair.request`. Returns the code, or null on failure. */
+    suspend fun requestPairing(
+        settings: GoClawSettings,
+        channel: String,
+        chatId: String,
+    ): String? = suspendCancellableCoroutine { cont ->
+        val done = AtomicBoolean(false)
+        val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
+        val listener = object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                webSocket.send(connectFrame(settings))
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                runCatching {
+                    val obj = http.json.parseToJsonElement(text).jsonObject
+                    if (obj["type"]?.jsonPrimitive?.content != "res") return
+                    val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
+                    when (obj["id"]?.jsonPrimitive?.content) {
+                        "c" -> if (ok) webSocket.send(
+                            buildJsonObject {
+                                put("type", "req"); put("id", "p"); put("method", "device.pair.request")
+                                putJsonObject("params") { put("channel", channel); put("chatId", chatId) }
+                            }.toString()
+                        ) else finish(webSocket, null)
+                        "p" -> {
+                            val p = obj["payload"]?.jsonObject
+                            finish(webSocket, if (ok) strP(p, "code", "pairingCode", "pair_code", "pairCode") else null)
+                        }
+                    }
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                finish(webSocket, null)
+
+            private fun finish(webSocket: WebSocket, result: String?) {
+                webSocket.close(1000, null)
+                if (done.compareAndSet(false, true) && cont.isActive) cont.resume(result)
+            }
+        }
+        val ws = http.wsClient.newWebSocket(request, listener)
+        cont.invokeOnCancellation { ws.cancel() }
+    }
+
+    /** Lists pending and approved pairings via `device.pair.list`. Tolerant of payload shape. */
+    suspend fun listPairings(settings: GoClawSettings): List<DevicePairing> =
+        suspendCancellableCoroutine { cont ->
+            val done = AtomicBoolean(false)
+            val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
+            val listener = object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    webSocket.send(connectFrame(settings))
+                }
+
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    runCatching {
+                        val obj = http.json.parseToJsonElement(text).jsonObject
+                        if (obj["type"]?.jsonPrimitive?.content != "res") return
+                        val ok = obj["ok"]?.jsonPrimitive?.booleanOrNull ?: false
+                        when (obj["id"]?.jsonPrimitive?.content) {
+                            "c" -> if (ok) webSocket.send(
+                                buildJsonObject {
+                                    put("type", "req"); put("id", "l"); put("method", "device.pair.list")
+                                    putJsonObject("params") {}
+                                }.toString()
+                            ) else finish(webSocket, emptyList())
+                            "l" -> finish(webSocket, if (ok) parsePairings(obj["payload"]) else emptyList())
+                        }
+                    }
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                    finish(webSocket, emptyList())
+
+                private fun finish(webSocket: WebSocket, result: List<DevicePairing>) {
+                    webSocket.close(1000, null)
+                    if (done.compareAndSet(false, true) && cont.isActive) cont.resume(result)
+                }
+            }
+            val ws = http.wsClient.newWebSocket(request, listener)
+            cont.invokeOnCancellation { ws.cancel() }
+        }
+
     /** Aborts the in-progress run for a session via `chat.abort`. Best-effort. */
     suspend fun abortRun(settings: GoClawSettings, sessionKey: String): Boolean =
         rpcBool(settings, "chat.abort") { put("sessionKey", sessionKey) }
@@ -652,6 +771,43 @@ class GoClawWsClient @Inject constructor(
                 cwd = strP(o, "cwd", "workdir", "directory", "dir"),
                 reason = strA(o, "reason", "explanation", "description"),
             )
+        }
+    }
+
+    /**
+     * Tolerant parse of a device.pair.list payload. Handles a bare array, a single-array wrapper
+     * ({pairings|items|data|devices}), or the split form ({pending:[…], approved:[…]}) that the
+     * "lists pending and approved pairings" description implies — tagging each entry's status.
+     */
+    private fun parsePairings(payloadEl: kotlinx.serialization.json.JsonElement?): List<DevicePairing> {
+        fun mapEntry(el: kotlinx.serialization.json.JsonElement, statusHint: String): DevicePairing? {
+            val o = el as? JsonObject ?: return null
+            val pairing = DevicePairing(
+                code = strP(o, "code", "pairingCode", "pair_code", "pairCode"),
+                channel = strP(o, "channel"),
+                chatId = strP(o, "chatId", "chat_id"),
+                senderId = strP(o, "senderId", "sender_id", "sender"),
+                approvedBy = strP(o, "approvedBy", "approved_by"),
+                status = strP(o, "status", "state").ifBlank { statusHint },
+                createdAt = strP(o, "createdAt", "created_at", "requestedAt", "requested_at"),
+            )
+            return if (pairing.code.isBlank() && pairing.channel.isBlank() && pairing.senderId.isBlank()) null else pairing
+        }
+        return when (payloadEl) {
+            is JsonArray -> payloadEl.mapNotNull { mapEntry(it, "") }
+            is JsonObject -> {
+                val pending = payloadEl["pending"] as? JsonArray
+                val approved = payloadEl["approved"] as? JsonArray
+                if (pending != null || approved != null) {
+                    pending.orEmpty().mapNotNull { mapEntry(it, "pending") } +
+                        approved.orEmpty().mapNotNull { mapEntry(it, "approved") }
+                } else {
+                    val arr = (payloadEl["pairings"] ?: payloadEl["items"]
+                        ?: payloadEl["data"] ?: payloadEl["devices"]) as? JsonArray
+                    arr?.mapNotNull { mapEntry(it, "") }.orEmpty()
+                }
+            }
+            else -> emptyList()
         }
     }
 

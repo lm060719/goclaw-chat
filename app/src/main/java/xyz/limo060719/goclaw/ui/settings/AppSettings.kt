@@ -52,6 +52,7 @@ class AppSettingsViewModel @Inject constructor(
     fun setWechatUi(on: Boolean) = viewModelScope.launch { store.updateWechatUi(on) }
     fun setThemeMode(mode: String) = viewModelScope.launch { store.updateThemeMode(mode) }
     fun setTtsBackend(on: Boolean) = viewModelScope.launch { store.updateTtsBackend(on) }
+    fun setShowConnectionStatus(on: Boolean) = viewModelScope.launch { store.updateShowConnectionStatus(on) }
     fun saveProfile(selfName: String, assistantName: String) =
         viewModelScope.launch { store.updateWechatProfile(selfName, assistantName) }
 
@@ -165,6 +166,24 @@ fun SettingsScreen(
                         )
                     }
                     Switch(checked = s.ttsBackend, onCheckedChange = vm::setTtsBackend)
+                }
+            }
+
+            // 连接状态显示
+            SettingCard(color = MaterialTheme.colorScheme.surfaceContainer) {
+                Row(
+                    Modifier.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("显示连接状态", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "在聊天界面左上角显示一个圆点：已连接为绿色，断开为红色。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = s.showConnectionStatus, onCheckedChange = vm::setShowConnectionStatus)
                 }
             }
         }

@@ -103,6 +103,13 @@ class ChatRepository @Inject constructor(
         runCatching { ws.deleteSession(s, sessionKeyOf(agentKey, conversationId)) }
     }
 
+    /** Probes the gateway (WS `status`) and returns whether it's reachable. */
+    suspend fun checkGatewayOnline(): Boolean {
+        val s = settingsStore.current()
+        if (!s.isConfigured) return false
+        return runCatching { ws.gatewayVersion(s) != null }.getOrDefault(false)
+    }
+
     /** Server-side transcript for a conversation (source of truth for context). */
     suspend fun fetchServerHistory(conversationId: String, agentKey: String): List<ServerMessage> {
         val s = settingsStore.current()

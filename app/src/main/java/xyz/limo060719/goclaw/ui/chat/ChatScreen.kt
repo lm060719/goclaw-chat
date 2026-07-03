@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,8 +17,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -49,6 +52,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -98,6 +103,8 @@ fun ChatScreen(
     val wechat by vm.wechatUi.collectAsStateWithLifecycle()
     val profile by vm.wechatProfile.collectAsStateWithLifecycle()
     val savedAgents by vm.savedAgents.collectAsStateWithLifecycle()
+    val showConnectionDot by vm.showConnectionStatus.collectAsStateWithLifecycle()
+    val connectionOnline by vm.connectionOnline.collectAsStateWithLifecycle()
 
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -161,6 +168,8 @@ fun ChatScreen(
                         state = state,
                         wechat = wechat,
                         assistantName = profile.assistantName,
+                        showConnectionDot = showConnectionDot,
+                        connectionOnline = connectionOnline,
                         onOpenDrawer = { scope.launch { drawerState.open() } },
                         onToggleTts = vm::toggleTts,
                         onNewConversation = vm::newConversation,
@@ -281,6 +290,8 @@ private fun ChatTopBar(
     state: ChatUiState,
     wechat: Boolean,
     assistantName: String,
+    showConnectionDot: Boolean,
+    connectionOnline: Boolean?,
     onOpenDrawer: () -> Unit,
     onToggleTts: () -> Unit,
     onNewConversation: () -> Unit,
@@ -304,6 +315,11 @@ private fun ChatTopBar(
         }
         CenterAlignedTopAppBar(
             title = { Text(title, style = MaterialTheme.typography.titleMedium) },
+            navigationIcon = {
+                if (showConnectionDot) {
+                    ConnectionDot(connectionOnline, Modifier.padding(start = 16.dp))
+                }
+            },
             actions = {
                 IconButton(onClick = onToggleTts) {
                     Icon(
@@ -320,6 +336,10 @@ private fun ChatTopBar(
         TopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (showConnectionDot) {
+                        ConnectionDot(connectionOnline)
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Text("GoClaw Chat", style = MaterialTheme.typography.titleLarge)
                     if (state.messages.isNotEmpty()) {
                         Spacer(Modifier.width(8.dp))
@@ -345,6 +365,22 @@ private fun ChatTopBar(
             },
         )
     }
+}
+
+/** Connection-status dot: green = online, red = offline, gray = unknown/checking. */
+@Composable
+private fun ConnectionDot(online: Boolean?, modifier: Modifier = Modifier) {
+    val color = when (online) {
+        true -> Color(0xFF22C55E)
+        false -> MaterialTheme.colorScheme.error
+        null -> MaterialTheme.colorScheme.outline
+    }
+    Box(
+        modifier
+            .size(10.dp)
+            .clip(CircleShape)
+            .background(color)
+    )
 }
 
 internal fun shareText(context: Context, text: String) {

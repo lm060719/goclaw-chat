@@ -7,15 +7,18 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import xyz.limo060719.goclaw.data.ChatEvent
 import xyz.limo060719.goclaw.data.ChatRepository
@@ -87,6 +90,17 @@ class ChatViewModel @Inject constructor(
         .map { it.savedAgents }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Whether to show the connection-status dot in the chat top bar. */
+    val showConnectionStatus: StateFlow<Boolean> = settingsStore.settings
+        .map { it.showConnectionStatus }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** Gateway reachability for the status dot: null = unknown/checking, true = online, false = offline. */
+    private val _connectionOnline = MutableStateFlow<Boolean?>(null)
+    val connectionOnline: StateFlow<Boolean?> = _connectionOnline.asStateFlow()
+
+    private var connectionJob: Job? = null
+
     private var currentConversationId: String? = null
     private var currentTitle: String? = null
     /** Agent the current conversation is bound to (fixed once the first message is sent). */
@@ -115,6 +129,21 @@ class ChatViewModel @Inject constructor(
             // Keep the chip on that default while the conversation is fresh & unbound.
             if (currentAgentKey == null && _state.value.messages.isEmpty()) {
                 _state.value = _state.value.copy(agent = default)
+            }
+        }.launchIn(viewModelScope)
+
+        // Poll gateway reachability only while the status dot is enabled, to avoid needless traffic.
+        settingsStore.settings.map { it.showConnectionStatus }.distinctUntilChanged().onEach { on ->
+            connectionJob?.cancel()
+            if (on) {
+                connectionJob = viewModelScope.launch {
+                    while (isActive) {
+                        _connectionOnline.value = repository.checkGatewayOnline()
+                        delay(15_000)
+                    }
+                }
+            } else {
+                _connectionOnline.value = null
             }
         }.launchIn(viewModelScope)
     }

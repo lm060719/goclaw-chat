@@ -8,13 +8,18 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.runBlocking
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.ui.chat.ChatScreen
@@ -39,14 +44,28 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var settingsStore: SettingsStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 必须在 super.onCreate 之前安装:启动窗口以 Splash 主题(固定浅色背景)绘制,
+        // 内容首帧就绪后自动淡出并切到 Theme.GoClawChat。
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // 冷启动时同步读一次已保存的设置,让第一帧就用用户选择的明暗主题。
+        // 否则 DataStore 异步读出真实值之前,会先用占位值 themeMode="system" 退回系统深浅,
+        // 在「系统深色 + 软件浅色」时先渲染成黑再切白,造成进入软件时的黑白闪烁。
+        val bootSettings = runBlocking { settingsStore.current() }
         setContent {
-            val settings by settingsStore.settings.collectAsStateWithLifecycle(initialValue = GoClawSettings())
+            val settings by settingsStore.settings.collectAsStateWithLifecycle(initialValue = bootSettings)
             val dark = when (settings.themeMode) {
                 "light" -> false
                 "dark" -> true
                 else -> isSystemInDarkTheme()
+            }
+            // 系统栏图标明暗跟随实际主题,避免浅色背景上出现浅色图标(反之亦然)看不清。
+            val view = LocalView.current
+            SideEffect {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !dark
+                controller.isAppearanceLightNavigationBars = !dark
             }
             GoClawTheme(darkTheme = dark) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

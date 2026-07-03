@@ -1,12 +1,15 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.GoClawApi
 import xyz.limo060719.goclaw.data.remote.UsageSummary
@@ -21,6 +24,7 @@ data class UsageUiState(
 
 @HiltViewModel
 class UsageViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsStore: SettingsStore,
     private val api: GoClawApi,
 ) : ViewModel() {
@@ -36,14 +40,14 @@ class UsageViewModel @Inject constructor(
         viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(message = "尚未配置后端地址 / API 密钥。")
+                _state.value = _state.value.copy(message = context.getString(R.string.err_not_configured))
                 return@launch
             }
             _state.value = _state.value.copy(loading = true)
             val raw = api.usageRaw(s).getOrNull()
             api.usageSummary(s)
                 .onSuccess { _state.value = _state.value.copy(usage = it, raw = raw, loading = false) }
-                .onFailure { _state.value = _state.value.copy(raw = raw, loading = false, message = "加载失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(raw = raw, loading = false, message = context.getString(R.string.err_load_failed, it.message ?: "")) }
         }
     }
 }

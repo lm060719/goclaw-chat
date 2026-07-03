@@ -1,12 +1,15 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.DevicePairing
 import xyz.limo060719.goclaw.data.remote.GoClawWsClient
@@ -25,6 +28,7 @@ data class DevicePairingUiState(
 
 @HiltViewModel
 class DevicePairingViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsStore: SettingsStore,
     private val ws: GoClawWsClient,
 ) : ViewModel() {
@@ -41,25 +45,25 @@ class DevicePairingViewModel @Inject constructor(
         viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(message = "尚未配置后端地址 / API 密钥。")
+                _state.value = _state.value.copy(message = context.getString(R.string.err_not_configured))
                 return@launch
             }
             _state.value = _state.value.copy(loading = true)
             runCatching { ws.listPairings(s) }
                 .onSuccess { _state.value = _state.value.copy(pairings = it, loading = false) }
-                .onFailure { _state.value = _state.value.copy(loading = false, message = "加载失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(loading = false, message = context.getString(R.string.err_load_failed, it.message ?: "")) }
         }
     }
 
     fun requestPairing(channel: String, chatId: String) {
         if (channel.isBlank() || chatId.isBlank()) {
-            _state.value = _state.value.copy(message = "请填写渠道与 Chat ID。")
+            _state.value = _state.value.copy(message = context.getString(R.string.pairing_need_channel_chat))
             return
         }
         viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(message = "尚未配置后端地址 / API 密钥。")
+                _state.value = _state.value.copy(message = context.getString(R.string.err_not_configured))
                 return@launch
             }
             _state.value = _state.value.copy(requesting = true)
@@ -68,32 +72,32 @@ class DevicePairingViewModel @Inject constructor(
                     _state.value = _state.value.copy(
                         requesting = false,
                         requestedCode = code,
-                        message = if (code.isNullOrBlank()) "请求失败" else null,
+                        message = if (code.isNullOrBlank()) context.getString(R.string.err_request_failed) else null,
                     )
                     if (!code.isNullOrBlank()) refresh()
                 }
-                .onFailure { _state.value = _state.value.copy(requesting = false, message = "请求失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(requesting = false, message = context.getString(R.string.err_op_failed_fmt, it.message ?: "")) }
         }
     }
 
     fun approve(pairing: DevicePairing) {
         val code = pairing.code
-        if (code.isBlank()) { _state.value = _state.value.copy(message = "该配对缺少配对码，无法批准。"); return }
-        resolve(pairing, "已批准") { s -> ws.approvePairing(s, code, s.userId) }
+        if (code.isBlank()) { _state.value = _state.value.copy(message = context.getString(R.string.pairing_no_code_approve)); return }
+        resolve(pairing, context.getString(R.string.common_approved)) { s -> ws.approvePairing(s, code, s.userId) }
     }
 
     fun deny(pairing: DevicePairing) {
         val code = pairing.code
-        if (code.isBlank()) { _state.value = _state.value.copy(message = "该配对缺少配对码，无法拒绝。"); return }
-        resolve(pairing, "已拒绝") { s -> ws.denyPairing(s, code) }
+        if (code.isBlank()) { _state.value = _state.value.copy(message = context.getString(R.string.pairing_no_code_deny)); return }
+        resolve(pairing, context.getString(R.string.common_rejected)) { s -> ws.denyPairing(s, code) }
     }
 
     fun revoke(pairing: DevicePairing) {
         if (pairing.channel.isBlank() || pairing.senderId.isBlank()) {
-            _state.value = _state.value.copy(message = "该配对缺少 channel / senderId，无法撤销。")
+            _state.value = _state.value.copy(message = context.getString(R.string.pairing_no_channel_revoke))
             return
         }
-        resolve(pairing, "已撤销") { s -> ws.revokePairing(s, pairing.channel, pairing.senderId) }
+        resolve(pairing, context.getString(R.string.common_revoked)) { s -> ws.revokePairing(s, pairing.channel, pairing.senderId) }
     }
 
     private fun resolve(
@@ -110,10 +114,10 @@ class DevicePairingViewModel @Inject constructor(
                         busyKey = null,
                         pairings = if (ok) _state.value.pairings.filterNot { it.stableKey == pairing.stableKey }
                         else _state.value.pairings,
-                        message = if (ok) successMsg else "操作失败",
+                        message = if (ok) successMsg else context.getString(R.string.err_op_failed),
                     )
                 }
-                .onFailure { _state.value = _state.value.copy(busyKey = null, message = "操作失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(busyKey = null, message = context.getString(R.string.err_op_failed_fmt, it.message ?: "")) }
         }
     }
 }

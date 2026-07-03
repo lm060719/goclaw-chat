@@ -13,6 +13,9 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.remote.dto.AgentInfo
 import xyz.limo060719.goclaw.data.remote.dto.MediaUpload
@@ -61,6 +64,7 @@ data class BackendSkill(
 )
 
 class GoClawApi @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val http: GoClawHttp,
 ) {
     suspend fun agents(s: GoClawSettings): Result<List<AgentInfo>> =
@@ -85,9 +89,9 @@ class GoClawApi @Inject constructor(
             val req = with(http) { Request.Builder().url(target).goClawAuth(s).get().build() }
             http.client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) error("HTTP ${resp.code}")
-                val body = resp.body ?: error("空响应")
+                val body = resp.body ?: error(context.getString(R.string.err_empty_response))
                 val bytes = body.bytes()
-                if (bytes.isEmpty()) error("空文件")
+                if (bytes.isEmpty()) error(context.getString(R.string.err_empty_file))
                 val name = filename?.takeIf { it.isNotBlank() }
                     ?: resp.request.url.pathSegments.lastOrNull()?.takeIf { it.isNotBlank() }
                     ?: "download"
@@ -240,10 +244,10 @@ class GoClawApi @Inject constructor(
                 http.client.newCall(req).execute().use { resp ->
                     val ct = resp.body?.contentType()?.let { "${it.type}/${it.subtype}" }.orEmpty()
                     if (!resp.isSuccessful) error("HTTP ${resp.code}: ${resp.body?.string().orEmpty().take(160)}")
-                    val bytes = resp.body?.bytes()?.takeIf { it.isNotEmpty() } ?: error("空响应")
+                    val bytes = resp.body?.bytes()?.takeIf { it.isNotEmpty() } ?: error(context.getString(R.string.err_empty_response))
                     // Reject JSON/text bodies (error payloads sometimes returned with 200) so callers fall back.
                     if (ct.startsWith("application/json") || ct.startsWith("text/")) {
-                        error("非音频响应($ct)：${String(bytes).take(160)}")
+                        error(context.getString(R.string.err_non_audio_fmt, ct, String(bytes).take(160)))
                     }
                     bytes
                 }

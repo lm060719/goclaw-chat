@@ -13,9 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,10 +37,10 @@ fun BackendSkillsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("后端技能") },
+                title = { Text(stringResource(R.string.backend_skills_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -52,7 +54,7 @@ fun BackendSkillsScreen(
                     if (state.uploading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     else Icon(Icons.Filled.Upload, contentDescription = null)
                 },
-                text = { Text(if (state.uploading) "上传中…" else "上传 .zip") },
+                text = { Text(stringResource(if (state.uploading) R.string.backend_skills_uploading else R.string.backend_skills_upload)) },
             )
         },
     ) { padding ->
@@ -66,10 +68,10 @@ fun BackendSkillsScreen(
                         Modifier.align(Alignment.Center).padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text("暂无后端技能", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.backend_skills_empty), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "上传 SKILL.md 格式的 .zip（可含脚本/资源），由后端执行。",
+                            stringResource(R.string.backend_skills_empty_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -101,7 +103,7 @@ fun BackendSkillsScreen(
                                         onCheckedChange = { vm.toggle(skill.id) },
                                     )
                                     IconButton(onClick = { vm.delete(skill.id) }) {
-                                        Icon(Icons.Filled.Delete, contentDescription = "删除")
+                                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.common_delete))
                                     }
                                 }
                             }

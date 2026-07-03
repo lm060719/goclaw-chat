@@ -47,8 +47,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 import coil.compose.AsyncImage
 import xyz.limo060719.goclaw.domain.model.FileRef
 import xyz.limo060719.goclaw.domain.model.Role
@@ -105,22 +107,22 @@ internal fun MessageRow(
 
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             DropdownMenuItem(
-                text = { Text("复制") },
+                text = { Text(stringResource(R.string.common_copy)) },
                 leadingIcon = { Icon(Icons.Filled.ContentCopy, null) },
                 onClick = { menuOpen = false; onCopy() },
             )
             DropdownMenuItem(
-                text = { Text("分享") },
+                text = { Text(stringResource(R.string.common_share)) },
                 leadingIcon = { Icon(Icons.Filled.Share, null) },
                 onClick = { menuOpen = false; onShare() },
             )
             DropdownMenuItem(
-                text = { Text("多选") },
+                text = { Text(stringResource(R.string.msg_multiselect)) },
                 leadingIcon = { Icon(Icons.Filled.Checklist, null) },
                 onClick = { menuOpen = false; onStartSelection() },
             )
             DropdownMenuItem(
-                text = { Text("删除") },
+                text = { Text(stringResource(R.string.common_delete)) },
                 leadingIcon = { Icon(Icons.Filled.Delete, null) },
                 onClick = { menuOpen = false; onDelete() },
             )
@@ -352,14 +354,14 @@ private fun ThinkingBlock(text: String, active: Boolean) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (active) "正在思考…" else "思考过程",
+                    stringResource(if (active) R.string.msg_thinking_active else R.string.msg_thinking),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
                     if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = if (expanded) "收起思考" else "展开思考",
+                    contentDescription = stringResource(if (expanded) R.string.msg_thinking_collapse else R.string.msg_thinking_expand),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )

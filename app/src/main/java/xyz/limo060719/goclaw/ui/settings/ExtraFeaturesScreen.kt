@@ -22,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,10 +44,10 @@ fun ExtraFeaturesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("附加功能") },
+                title = { Text(stringResource(R.string.extras_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -59,71 +61,71 @@ fun ExtraFeaturesScreen(
         ) {
             FeatureRow(
                 icon = Icons.Filled.Extension,
-                title = "技能（本地注入）",
-                subtitle = "导入技能，作为指令注入到对话",
+                title = stringResource(R.string.extras_skills_title),
+                subtitle = stringResource(R.string.extras_skills_desc),
                 onClick = onOpenSkills,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.Bolt,
-                title = "后端技能（可执行）",
-                subtitle = "上传 .zip 到后端，可执行脚本、按需加载",
+                title = stringResource(R.string.extras_backend_skills_title),
+                subtitle = stringResource(R.string.extras_backend_skills_desc),
                 onClick = onOpenBackendSkills,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.VerifiedUser,
-                title = "审批管理",
-                subtitle = "审批 Agent 待处理的 shell 命令",
+                title = stringResource(R.string.extras_approvals_title),
+                subtitle = stringResource(R.string.extras_approvals_desc),
                 onClick = onOpenApprovals,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.Forum,
-                title = "会话管理",
-                subtitle = "浏览服务端会话，压缩超长历史、清空或删除",
+                title = stringResource(R.string.extras_sessions_title),
+                subtitle = stringResource(R.string.extras_sessions_desc),
                 onClick = onOpenSessions,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.QueryStats,
-                title = "用量 & 费用",
-                subtitle = "查看 Token 消耗与费用统计",
+                title = stringResource(R.string.extras_usage_title),
+                subtitle = stringResource(R.string.extras_usage_desc),
                 onClick = onOpenUsage,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.Insights,
-                title = "执行轨迹",
-                subtitle = "查看 Agent 运行的 LLM 调用轨迹",
+                title = stringResource(R.string.extras_traces_title),
+                subtitle = stringResource(R.string.extras_traces_desc),
                 onClick = onOpenTraces,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.Devices,
-                title = "设备配对",
-                subtitle = "生成配对码，批准、撤销跨渠道设备绑定",
+                title = stringResource(R.string.extras_pairing_title),
+                subtitle = stringResource(R.string.extras_pairing_desc),
                 onClick = onOpenPairing,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.Subject,
-                title = "实时日志",
-                subtitle = "实时查看后端日志流，可按级别过滤",
+                title = stringResource(R.string.extras_logs_title),
+                subtitle = stringResource(R.string.extras_logs_desc),
                 onClick = onOpenLogs,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.MonitorHeart,
-                title = "心跳 Heartbeat",
-                subtitle = "配置定时心跳、编辑 HEARTBEAT.md、查看执行日志",
+                title = stringResource(R.string.extras_heartbeat_title),
+                subtitle = stringResource(R.string.extras_heartbeat_desc),
                 onClick = onOpenHeartbeat,
             )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             FeatureRow(
                 icon = Icons.Filled.Key,
-                title = "API Keys",
-                subtitle = "创建、查看与撤销后端 API 密钥",
+                title = stringResource(R.string.extras_api_keys_title),
+                subtitle = stringResource(R.string.extras_api_keys_desc),
                 onClick = onOpenApiKeys,
             )
 }

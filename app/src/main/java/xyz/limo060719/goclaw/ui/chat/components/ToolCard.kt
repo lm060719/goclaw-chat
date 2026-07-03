@@ -28,8 +28,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.domain.model.FileRef
 import xyz.limo060719.goclaw.domain.model.UiMessage
 import xyz.limo060719.goclaw.ui.theme.CodeFontFamily
@@ -60,7 +62,7 @@ internal fun ToolCardView(msg: UiMessage, onDownload: ((FileRef) -> Unit)? = nul
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        "工具 · ${tool.name}",
+                        stringResource(R.string.tool_prefix, tool.name),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -68,7 +70,7 @@ internal fun ToolCardView(msg: UiMessage, onDownload: ((FileRef) -> Unit)? = nul
                 IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(24.dp)) {
                     Icon(
                         if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = "展开/收起",
+                        contentDescription = stringResource(R.string.tool_toggle),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -85,14 +87,14 @@ internal fun ToolCardView(msg: UiMessage, onDownload: ((FileRef) -> Unit)? = nul
             AnimatedVisibility(visible = expanded) {
                 Column {
                     Text(
-                        "参数",
+                        stringResource(R.string.tool_args),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(tool.arguments, fontFamily = CodeFontFamily, style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "结果",
+                        stringResource(R.string.tool_result),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -104,7 +106,7 @@ internal fun ToolCardView(msg: UiMessage, onDownload: ((FileRef) -> Unit)? = nul
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "输出文件",
+                    stringResource(R.string.tool_output_files),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

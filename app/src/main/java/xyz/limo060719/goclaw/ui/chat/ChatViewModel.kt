@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.ChatEvent
 import xyz.limo060719.goclaw.data.ChatRepository
 import xyz.limo060719.goclaw.data.Conversation
@@ -204,7 +205,7 @@ class ChatViewModel @Inject constructor(
         _state.value.messages.filter { it.id in ids }.joinToString("\n\n", transform = ::messageText)
 
     private fun messageText(m: UiMessage): String = when (m.role) {
-        Role.TOOL -> m.tool?.let { "[工具 ${it.name}]\n${it.result}" }.orEmpty()
+        Role.TOOL -> m.tool?.let { context.getString(R.string.tool_copy_label, it.name, it.result) }.orEmpty()
         else -> m.text
     }
 
@@ -225,8 +226,8 @@ class ChatViewModel @Inject constructor(
                 // Any failure (unreachable / non-audio / unplayable format) → on-device TTS, and
                 // surface the reason once so backend TTS problems are diagnosable.
                 speech.speak(text)
-                val why = result.exceptionOrNull()?.message ?: "音频无法播放"
-                _state.value = _state.value.copy(error = "后端 TTS 不可用（$why），已改用设备朗读")
+                val why = result.exceptionOrNull()?.message ?: context.getString(R.string.err_audio_unplayable)
+                _state.value = _state.value.copy(error = context.getString(R.string.err_backend_tts, why))
             }
         }
     }
@@ -236,7 +237,7 @@ class ChatViewModel @Inject constructor(
         if (att != null) {
             _state.value = _state.value.copy(attachments = _state.value.attachments + att)
         } else {
-            _state.value = _state.value.copy(error = "无法加载图片")
+            _state.value = _state.value.copy(error = context.getString(R.string.err_image_load))
         }
     }
 
@@ -256,7 +257,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(error = "尚未配置后端地址 / API 密钥。")
+                _state.value = _state.value.copy(error = context.getString(R.string.err_not_configured))
                 return@launch
             }
             _state.value = _state.value.copy(isStreaming = true)
@@ -286,9 +287,9 @@ class ChatViewModel @Inject constructor(
                     _state.value = _state.value.copy(isStreaming = false)
                     val saved = saveToDownloads(downloaded.filename, downloaded.mimeType, downloaded.bytes)
                     if (saved != null) {
-                        _state.value = _state.value.copy(error = "已保存到：$saved")
+                        _state.value = _state.value.copy(error = context.getString(R.string.msg_saved_to, saved))
                     } else {
-                        _state.value = _state.value.copy(error = "保存失败")
+                        _state.value = _state.value.copy(error = context.getString(R.string.err_save_failed))
                     }
                     return@launch
                 }.onFailure { lastError = it }
@@ -296,7 +297,7 @@ class ChatViewModel @Inject constructor(
 
             _state.value = _state.value.copy(
                 isStreaming = false,
-                error = "下载失败：${lastError?.message ?: "文件不可达"}",
+                error = context.getString(R.string.err_download_failed, lastError?.message ?: context.getString(R.string.err_file_unreachable)),
             )
         }
     }
@@ -456,7 +457,7 @@ class ChatViewModel @Inject constructor(
         val id = currentConversationId ?: java.util.UUID.randomUUID().toString()
             .also { currentConversationId = it }
         val title = currentTitle ?: (msgs.firstOrNull { it.role == Role.USER }
-            ?.text?.trim()?.take(30)?.takeIf { it.isNotBlank() } ?: "新对话")
+            ?.text?.trim()?.take(30)?.takeIf { it.isNotBlank() } ?: context.getString(R.string.chat_untitled))
         currentTitle = title
         conversationStore.save(
             Conversation(
@@ -503,13 +504,13 @@ class ChatViewModel @Inject constructor(
             val media = imagePaths + filePaths
 
             if ((attachments.isNotEmpty() || files.isNotEmpty()) && media.isEmpty()) {
-                _state.value = _state.value.copy(isStreaming = false, error = "附件上传失败")
+                _state.value = _state.value.copy(isStreaming = false, error = context.getString(R.string.err_attach_upload))
                 return@launch
             }
 
             // Attachments go through chat.send's native `media` field; message stays plain text.
             val message = text.ifBlank {
-                if (media.isNotEmpty()) "请查看我发送的附件并处理。" else ""
+                if (media.isNotEmpty()) context.getString(R.string.msg_attach_prompt) else ""
             }
             repository.run(message, convId, agentKey, firstMessage, media)
                 .onEach { ev -> handle(ev) }.collect()
@@ -659,7 +660,7 @@ class ChatViewModel @Inject constructor(
             voiceStart = System.currentTimeMillis()
             _state.value = _state.value.copy(isRecording = true)
         } else {
-            _state.value = _state.value.copy(error = "无法开始录音，请检查麦克风权限")
+            _state.value = _state.value.copy(error = context.getString(R.string.err_record_start))
         }
     }
 
@@ -676,7 +677,7 @@ class ChatViewModel @Inject constructor(
         if (file == null) return
         if (tooShort || file.length() < 1500) {
             file.delete()
-            _state.value = _state.value.copy(error = "说话时间太短")
+            _state.value = _state.value.copy(error = context.getString(R.string.err_record_too_short))
             return
         }
         sendVoice(file)
@@ -690,7 +691,7 @@ class ChatViewModel @Inject constructor(
             currentAgentKey = _state.value.agent.ifBlank { activeAgent }.ifBlank { "default" }
         }
         val agentKey = currentAgentKey ?: "default"
-        appendMessage(UiMessage(role = Role.USER, fileNames = listOf("🎤 语音")))
+        appendMessage(UiMessage(role = Role.USER, fileNames = listOf(context.getString(R.string.chat_voice_label))))
         _state.value = _state.value.copy(isStreaming = true)
         currentAssistantId = null
         streamedAnyBlock = false
@@ -701,10 +702,10 @@ class ChatViewModel @Inject constructor(
                 ?.let { repository.uploadRaw(it, "audio/mp4", "voice.m4a") }
             file.delete()
             if (path == null) {
-                _state.value = _state.value.copy(isStreaming = false, error = "语音上传失败")
+                _state.value = _state.value.copy(isStreaming = false, error = context.getString(R.string.err_voice_upload))
                 return@launch
             }
-            repository.run("请把这条语音转写成文字并回复。", convId, agentKey, firstMessage, listOf(path))
+            repository.run(context.getString(R.string.msg_voice_prompt), convId, agentKey, firstMessage, listOf(path))
                 .onEach { ev -> handle(ev) }.collect()
         }
     }

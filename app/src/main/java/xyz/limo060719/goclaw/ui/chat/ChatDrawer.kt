@@ -44,8 +44,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.ConversationMeta
 import xyz.limo060719.goclaw.ui.chat.components.AgentTag
 import xyz.limo060719.goclaw.ui.chat.components.RenameDialog
@@ -90,7 +92,7 @@ internal fun ChatDrawer(
             Text("GoClaw Chat", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onClose) {
-                Icon(Icons.Filled.Close, contentDescription = "关闭")
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close))
             }
         }
 
@@ -98,7 +100,7 @@ internal fun ChatDrawer(
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            placeholder = { Text("搜索历史对话") },
+            placeholder = { Text(stringResource(R.string.drawer_search)) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             singleLine = true,
             shape = MaterialTheme.shapes.medium,
@@ -120,12 +122,12 @@ internal fun ChatDrawer(
         ) {
             Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.width(12.dp))
-            Text("新建对话", style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.chat_new_conversation), style = MaterialTheme.typography.bodyLarge)
         }
 
         Spacer(Modifier.height(16.dp))
         Text(
-            "历史对话",
+            stringResource(R.string.drawer_history),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -134,7 +136,7 @@ internal fun ChatDrawer(
         if (filtered.isEmpty()) {
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Text(
-                    if (conversations.isEmpty()) "暂无历史对话" else "未找到匹配的对话",
+                    stringResource(if (conversations.isEmpty()) R.string.drawer_history_empty else R.string.drawer_history_no_match),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -170,7 +172,7 @@ internal fun ChatDrawer(
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    conv.title.ifBlank { "新对话" },
+                                    conv.title.ifBlank { stringResource(R.string.chat_untitled) },
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyLarge,
@@ -183,7 +185,7 @@ internal fun ChatDrawer(
                             IconButton(onClick = { onDeleteConversation(conv.id) }) {
                                 Icon(
                                     Icons.Filled.Delete,
-                                    contentDescription = "删除对话",
+                                    contentDescription = stringResource(R.string.drawer_delete_conversation),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -197,12 +199,12 @@ internal fun ChatDrawer(
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             color = MaterialTheme.colorScheme.outlineVariant,
         )
-        DrawerEntry(Icons.Filled.Apps, "附加功能", onOpenExtras)
+        DrawerEntry(Icons.Filled.Apps, stringResource(R.string.drawer_extras), onOpenExtras)
         HorizontalDivider(
             Modifier.padding(horizontal = 16.dp),
             color = MaterialTheme.colorScheme.outlineVariant,
         )
-        DrawerEntry(Icons.Filled.Settings, "设置", onOpenSettings)
+        DrawerEntry(Icons.Filled.Settings, stringResource(R.string.settings_title), onOpenSettings)
         Spacer(Modifier.height(12.dp))
     }
 }

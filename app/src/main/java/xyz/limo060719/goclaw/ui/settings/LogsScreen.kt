@@ -22,14 +22,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.LogLine
 
-private val LEVELS = listOf("" to "全部", "debug" to "DEBUG", "info" to "INFO", "warn" to "WARN", "error" to "ERROR")
+/** Level filter codes; "" = all. The "all" label is localized at render time. */
+private val LEVELS = listOf("", "debug", "info", "warn", "error")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,10 +45,11 @@ fun LogsScreen(
     val listState = rememberLazyListState()
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val copiedMsg = stringResource(R.string.common_copied)
     fun copy(text: String) {
         if (text.isBlank()) return
         clipboard.setText(AnnotatedString(text))
-        scope.launch { snackbar.showSnackbar("已复制") }
+        scope.launch { snackbar.showSnackbar(copiedMsg) }
     }
     LaunchedEffect(state.message) { state.message?.let { snackbar.showSnackbar(it); vm.clearMessage() } }
     // Follow the tail as new lines arrive (instant jump — cheaper/smoother than animating per line).
@@ -57,10 +61,10 @@ fun LogsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("实时日志") },
+                title = { Text(stringResource(R.string.extras_logs_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
@@ -68,10 +72,10 @@ fun LogsScreen(
                         onClick = { copy(state.lines.joinToString("\n") { formatLine(it) }) },
                         enabled = state.lines.isNotEmpty(),
                     ) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = "复制全部")
+                        Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.logs_copy_all))
                     }
                     IconButton(onClick = vm::clearLines, enabled = state.lines.isNotEmpty()) {
-                        Icon(Icons.Filled.ClearAll, contentDescription = "清空")
+                        Icon(Icons.Filled.ClearAll, contentDescription = stringResource(R.string.logs_clear))
                     }
                 },
             )
@@ -85,7 +89,7 @@ fun LogsScreen(
                         contentDescription = null,
                     )
                 },
-                text = { Text(if (state.streaming) "停止" else "开始") },
+                text = { Text(stringResource(if (state.streaming) R.string.logs_stop else R.string.logs_start)) },
             )
         },
     ) { padding ->
@@ -109,7 +113,7 @@ fun LogsScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            if (state.streaming) "正在等待日志…" else "点击「开始」拉取实时日志",
+                            stringResource(if (state.streaming) R.string.logs_waiting else R.string.logs_tap_start),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -139,7 +143,8 @@ private fun LevelFilterRow(selected: String, onSelect: (String) -> Unit) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LEVELS.forEach { (value, label) ->
+        LEVELS.forEach { value ->
+            val label = if (value.isEmpty()) stringResource(R.string.logs_level_all) else value.uppercase()
             FilterChip(
                 selected = selected == value,
                 onClick = { onSelect(value) },

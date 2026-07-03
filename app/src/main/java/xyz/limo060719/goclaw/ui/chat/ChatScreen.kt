@@ -56,8 +56,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -90,6 +92,7 @@ fun ChatScreen(
     vm: ChatViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val copiedMsg = stringResource(R.string.common_copied)
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -177,7 +180,7 @@ fun ChatScreen(
                         onShareSelection = { shareText(context, vm.textOf(state.selectedIds)) },
                         onCopySelection = {
                             clipboard.setText(AnnotatedString(vm.textOf(state.selectedIds)))
-                            scope.launch { snackbar.showSnackbar("已复制") }
+                            scope.launch { snackbar.showSnackbar(copiedMsg) }
                         },
                         onDeleteSelection = { pendingDelete = state.selectedIds },
                     )
@@ -249,7 +252,7 @@ fun ChatScreen(
                                     onStartSelection = { vm.startSelection(msg.id) },
                                     onCopy = {
                                         clipboard.setText(AnnotatedString(vm.textOf(setOf(msg.id))))
-                                        scope.launch { snackbar.showSnackbar("已复制") }
+                                        scope.launch { snackbar.showSnackbar(copiedMsg) }
                                     },
                                     onShare = { shareText(context, vm.textOf(setOf(msg.id))) },
                                     onDelete = { pendingDelete = setOf(msg.id) },
@@ -324,11 +327,11 @@ private fun ChatTopBar(
                 IconButton(onClick = onToggleTts) {
                     Icon(
                         if (state.ttsEnabled) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff,
-                        contentDescription = "切换语音播报",
+                        contentDescription = stringResource(R.string.chat_toggle_tts),
                     )
                 }
                 IconButton(onClick = onOpenDrawer) {
-                    Icon(Icons.Filled.MoreHoriz, contentDescription = "菜单")
+                    Icon(Icons.Filled.MoreHoriz, contentDescription = stringResource(R.string.common_menu))
                 }
             },
         )
@@ -349,18 +352,18 @@ private fun ChatTopBar(
             },
             navigationIcon = {
                 IconButton(onClick = onOpenDrawer) {
-                    Icon(Icons.Filled.Menu, contentDescription = "菜单")
+                    Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.common_menu))
                 }
             },
             actions = {
                 IconButton(onClick = onToggleTts) {
                     Icon(
                         if (state.ttsEnabled) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff,
-                        contentDescription = "切换语音播报",
+                        contentDescription = stringResource(R.string.chat_toggle_tts),
                     )
                 }
                 IconButton(onClick = onNewConversation) {
-                    Icon(Icons.Filled.Add, contentDescription = "新建对话")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_new_conversation))
                 }
             },
         )
@@ -389,5 +392,5 @@ internal fun shareText(context: Context, text: String) {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "分享到"))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_share_to)))
 }

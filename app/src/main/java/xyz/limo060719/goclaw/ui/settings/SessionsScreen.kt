@@ -13,10 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.SessionSummary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,15 +35,15 @@ fun SessionsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("会话管理") },
+                title = { Text(stringResource(R.string.extras_sessions_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = vm::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
             )
@@ -64,7 +66,7 @@ fun SessionsScreen(
                             modifier = Modifier.size(40.dp),
                         )
                         Spacer(Modifier.height(12.dp))
-                        Text("暂无服务端会话", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.sessions_empty), style = MaterialTheme.typography.bodyMedium)
                     }
 
                 else -> LazyColumn(
@@ -108,7 +110,7 @@ private fun SessionCard(
             Spacer(Modifier.height(2.dp))
             val meta = buildList {
                 if (session.agent.isNotBlank()) add(session.agent)
-                if (session.messageCount > 0) add("${session.messageCount} 条消息")
+                if (session.messageCount > 0) add(stringResource(R.string.sessions_msg_count_fmt, session.messageCount))
                 if (session.updated.isNotBlank()) add(session.updated)
             }.joinToString(" · ")
             if (meta.isNotBlank()) {
@@ -133,12 +135,12 @@ private fun SessionCard(
                 TextButton(onClick = onCompact, enabled = enabled) {
                     Icon(Icons.Filled.Compress, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("压缩")
+                    Text(stringResource(R.string.sessions_compact))
                 }
                 TextButton(onClick = onReset, enabled = enabled) {
                     Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("清空")
+                    Text(stringResource(R.string.sessions_clear))
                 }
                 TextButton(
                     onClick = onDelete,
@@ -147,7 +149,7 @@ private fun SessionCard(
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("删除")
+                    Text(stringResource(R.string.common_delete))
                 }
             }
         }

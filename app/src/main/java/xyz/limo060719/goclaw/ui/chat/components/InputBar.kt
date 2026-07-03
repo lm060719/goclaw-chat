@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.ui.res.stringResource
+import xyz.limo060719.goclaw.R
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -94,14 +96,14 @@ internal fun InputBar(
                     IconButton(onClick = onPickImage) {
                         Icon(
                             Icons.Filled.Image,
-                            contentDescription = "添加图片",
+                            contentDescription = stringResource(R.string.chat_add_image),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     IconButton(onClick = onPickFile) {
                         Icon(
                             Icons.Filled.AttachFile,
-                            contentDescription = "添加文件",
+                            contentDescription = stringResource(R.string.chat_add_file),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -126,7 +128,7 @@ internal fun InputBar(
                     ) {
                         Icon(
                             Icons.Filled.GraphicEq,
-                            contentDescription = "按住发送语音",
+                            contentDescription = stringResource(R.string.chat_hold_to_talk),
                             tint = if (recording) MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -135,7 +137,7 @@ internal fun InputBar(
                         value = input,
                         onValueChange = onInputChange,
                         placeholder = {
-                            Text(if (hasMessages) "继续输入…" else "输入消息")
+                            Text(stringResource(if (hasMessages) R.string.chat_input_continue else R.string.chat_input_hint))
                         },
                         modifier = Modifier.weight(1f),
                         maxLines = 5,
@@ -157,7 +159,7 @@ internal fun InputBar(
                     ) {
                         Icon(
                             if (isStreaming) Icons.Filled.Stop else Icons.Filled.Send,
-                            contentDescription = if (isStreaming) "停止" else "发送",
+                            contentDescription = stringResource(if (isStreaming) R.string.chat_stop else R.string.chat_send),
                         )
                     }
                 }
@@ -233,7 +235,7 @@ internal fun AttachmentStrip(
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     IconButton(onClick = { onRemoveAttachment(att) }, modifier = Modifier.size(20.dp)) {
-                        Icon(Icons.Filled.Close, contentDescription = "移除", modifier = Modifier.size(14.dp))
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_remove), modifier = Modifier.size(14.dp))
                     }
                 }
             }
@@ -258,7 +260,7 @@ internal fun AttachmentStrip(
                         modifier = Modifier.widthIn(max = 120.dp),
                     )
                     IconButton(onClick = { onRemoveFile(f) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Filled.Close, contentDescription = "移除", modifier = Modifier.size(14.dp))
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_remove), modifier = Modifier.size(14.dp))
                     }
                 }
             }
@@ -287,10 +289,10 @@ internal fun RecordingOverlay() {
                     tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("正在录音…", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.chat_recording), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "松开发送",
+                    stringResource(R.string.chat_release_to_send),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

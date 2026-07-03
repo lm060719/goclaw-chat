@@ -18,12 +18,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.ApiKeyInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,8 +50,8 @@ fun ApiKeysScreen(
     state.createdSecret?.let { secret ->
         SecretDialog(
             secret = secret,
-            title = "请立即保存此 Key",
-            note = "已自动保存到本机，之后可在列表点「查看密钥」再次查看/复制。",
+            title = stringResource(R.string.apikeys_save_now_title),
+            note = stringResource(R.string.apikeys_save_now_note),
             noteError = true,
             onDismiss = { vm.clearCreatedSecret(); showCreate = false },
         )
@@ -57,8 +59,8 @@ fun ApiKeysScreen(
     viewingSecret?.let { secret ->
         SecretDialog(
             secret = secret,
-            title = "密钥",
-            note = "此密钥保存在本机，请妥善保管。",
+            title = stringResource(R.string.apikeys_key_title),
+            note = stringResource(R.string.apikeys_key_note),
             noteError = false,
             onDismiss = { viewingSecret = null },
         )
@@ -68,15 +70,15 @@ fun ApiKeysScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("API Keys") },
+                title = { Text(stringResource(R.string.extras_api_keys_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = vm::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
             )
@@ -85,7 +87,7 @@ fun ApiKeysScreen(
             ExtendedFloatingActionButton(
                 onClick = { showCreate = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("创建 Key") },
+                text = { Text(stringResource(R.string.apikeys_create_key)) },
             )
         },
     ) { padding ->
@@ -106,7 +108,7 @@ fun ApiKeysScreen(
                             modifier = Modifier.size(40.dp),
                         )
                         Spacer(Modifier.height(12.dp))
-                        Text("暂无 API Key", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.apikeys_empty), style = MaterialTheme.typography.bodyMedium)
                     }
 
                 else -> LazyColumn(
@@ -149,7 +151,7 @@ private fun ApiKeyCard(
                     modifier = Modifier.weight(1f),
                 )
                 if (item.revoked) {
-                    AssistChip(onClick = {}, enabled = false, label = { Text("已撤销") })
+                    AssistChip(onClick = {}, enabled = false, label = { Text(stringResource(R.string.common_revoked)) })
                 }
             }
             if (item.prefix.isNotBlank()) {
@@ -171,15 +173,15 @@ private fun ApiKeyCard(
             }
             item.expiresAt.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(2.dp))
-                Text("到期：$it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.apikeys_expires_fmt, it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             item.createdAt.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(2.dp))
-                Text("创建于：$it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.apikeys_created_fmt, it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (savedSecret != null) {
                 Spacer(Modifier.height(4.dp))
-                Text("🔒 密钥已存于本机", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.apikeys_stored_locally), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
             if (!item.revoked || savedSecret != null) {
                 Spacer(Modifier.height(10.dp))
@@ -196,14 +198,14 @@ private fun ApiKeyCard(
                         OutlinedButton(onClick = onViewSecret, enabled = enabled) {
                             Icon(Icons.Filled.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("查看密钥")
+                            Text(stringResource(R.string.apikeys_view_key))
                         }
                     }
                     if (!item.revoked) {
                         OutlinedButton(onClick = onRevoke, enabled = enabled) {
                             Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("撤销")
+                            Text(stringResource(R.string.common_revoke))
                         }
                     }
                 }
@@ -218,16 +220,16 @@ private fun ApiKeyCard(
  * with "invalid scope". read/write/provision follow the same prefix convention.
  */
 private val SCOPES = listOf(
-    "operator.admin" to "完全管理员权限",
-    "operator.read" to "只读权限",
-    "operator.write" to "读写权限",
-    "operator.approvals" to "管理执行审批",
-    "operator.pairing" to "管理设备配对",
-    "operator.provision" to "开通新租户",
+    "operator.admin" to R.string.apikeys_scope_admin,
+    "operator.read" to R.string.apikeys_scope_read,
+    "operator.write" to R.string.apikeys_scope_write,
+    "operator.approvals" to R.string.apikeys_scope_approvals,
+    "operator.pairing" to R.string.apikeys_scope_pairing,
+    "operator.provision" to R.string.apikeys_scope_provision,
 )
 
-/** Expiry presets in days; null = 自定义(需手动输入). */
-private val EXPIRY_PRESETS = listOf(7 to "7 天", 30 to "30 天", 90 to "90 天", null to "自定义")
+/** Expiry presets in days; null = custom (manual input). */
+private val EXPIRY_PRESETS = listOf<Int?>(7, 30, 90, null)
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -246,36 +248,38 @@ private fun CreateKeyDialog(
 
     AlertDialog(
         onDismissRequest = { if (!creating) onDismiss() },
-        title = { Text("创建 API Key") },
+        title = { Text(stringResource(R.string.apikeys_create_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
-                    label = { Text("名称") }, singleLine = true, enabled = !creating,
+                    label = { Text(stringResource(R.string.apikeys_name)) }, singleLine = true, enabled = !creating,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("权限范围（可多选）", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.apikeys_scopes), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SCOPES.forEach { (code, label) ->
+                    SCOPES.forEach { (code, labelRes) ->
                         val selected = code in selectedScopes
                         FilterChip(
                             selected = selected,
                             onClick = {
                                 if (selected) selectedScopes.remove(code) else selectedScopes.add(code)
                             },
-                            label = { Text(label) },
+                            label = { Text(stringResource(labelRes)) },
                             enabled = !creating,
                         )
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("有效期", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.apikeys_validity), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EXPIRY_PRESETS.forEach { (days, label) ->
+                    EXPIRY_PRESETS.forEach { days ->
                         val selected = if (days == null) isCustom else (!isCustom && expiryPreset == days)
+                        val label = if (days == null) stringResource(R.string.apikeys_custom)
+                            else stringResource(R.string.apikeys_days_fmt, days)
                         FilterChip(
                             selected = selected,
                             onClick = {
@@ -291,7 +295,7 @@ private fun CreateKeyDialog(
                     OutlinedTextField(
                         value = customDays,
                         onValueChange = { customDays = it.filter(Char::isDigit) },
-                        label = { Text("自定义天数") },
+                        label = { Text(stringResource(R.string.apikeys_custom_days)) },
                         singleLine = true, enabled = !creating,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -305,10 +309,10 @@ private fun CreateKeyDialog(
                 enabled = !creating && name.isNotBlank() && selectedScopes.isNotEmpty() &&
                     (!isCustom || customDays.toIntOrNull() != null),
             ) {
-                if (creating) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("创建")
+                if (creating) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(stringResource(R.string.apikeys_create))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !creating) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !creating) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -346,12 +350,12 @@ private fun SecretDialog(
                 }
             }
         },
-        confirmButton = { Button(onClick = onDismiss) { Text("完成") } },
+        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.common_done)) } },
         dismissButton = {
             TextButton(onClick = { clipboard.setText(AnnotatedString(secret)) }) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("复制")
+                Text(stringResource(R.string.common_copy))
             }
         },
     )

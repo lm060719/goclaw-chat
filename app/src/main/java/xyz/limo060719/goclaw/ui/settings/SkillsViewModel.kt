@@ -1,19 +1,23 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.domain.skills.Skill
 import xyz.limo060719.goclaw.domain.skills.SkillRepository
 import javax.inject.Inject
 
 @HiltViewModel
 class SkillsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: SkillRepository,
 ) : ViewModel() {
 
@@ -27,12 +31,12 @@ class SkillsViewModel @Inject constructor(
             repository.importFromUri(uri)
                 .onSuccess { list ->
                     _message.value = when (list.size) {
-                        0 -> "未找到可导入的技能"
-                        1 -> "已导入：${list.first().name}"
-                        else -> "已导入 ${list.size} 个技能：${list.joinToString("、") { it.name }}"
+                        0 -> context.getString(R.string.skills_import_none)
+                        1 -> context.getString(R.string.skills_imported_one_fmt, list.first().name)
+                        else -> context.getString(R.string.skills_imported_many_fmt, list.size, list.joinToString(", ") { it.name })
                     }
                 }
-                .onFailure { _message.value = "导入失败：${it.message}" }
+                .onFailure { _message.value = context.getString(R.string.skills_import_failed_fmt, it.message ?: "") }
         }
     }
 

@@ -8,6 +8,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.limo060719.goclaw.R
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -104,14 +105,14 @@ class SpeechManager @Inject constructor(
         getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
 
     private fun errorText(code: Int): String = when (code) {
-        SpeechRecognizer.ERROR_AUDIO -> "录音错误"
-        SpeechRecognizer.ERROR_CLIENT -> "客户端错误"
-        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "缺少麦克风权限"
-        SpeechRecognizer.ERROR_NETWORK -> "网络错误"
-        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "网络超时"
-        SpeechRecognizer.ERROR_NO_MATCH -> "未识别到语音"
-        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "识别器忙碌"
-        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "未检测到语音输入"
-        else -> "语音识别错误($code)"
+        SpeechRecognizer.ERROR_AUDIO -> context.getString(R.string.err_speech_audio)
+        SpeechRecognizer.ERROR_CLIENT -> context.getString(R.string.err_speech_client)
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> context.getString(R.string.err_speech_permission)
+        SpeechRecognizer.ERROR_NETWORK -> context.getString(R.string.err_speech_network)
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> context.getString(R.string.err_speech_network_timeout)
+        SpeechRecognizer.ERROR_NO_MATCH -> context.getString(R.string.err_speech_no_match)
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> context.getString(R.string.err_speech_busy)
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> context.getString(R.string.err_speech_timeout)
+        else -> context.getString(R.string.err_speech_generic_fmt, code)
     }
 }

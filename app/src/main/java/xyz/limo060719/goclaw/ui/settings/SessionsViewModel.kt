@@ -1,12 +1,15 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.GoClawWsClient
 import xyz.limo060719.goclaw.data.remote.SessionSummary
@@ -21,6 +24,7 @@ data class SessionsUiState(
 
 @HiltViewModel
 class SessionsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsStore: SettingsStore,
     private val ws: GoClawWsClient,
 ) : ViewModel() {
@@ -36,7 +40,7 @@ class SessionsViewModel @Inject constructor(
         viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(message = "尚未配置后端地址 / API 密钥。")
+                _state.value = _state.value.copy(message = context.getString(R.string.err_not_configured))
                 return@launch
             }
             _state.value = _state.value.copy(loading = true)
@@ -47,13 +51,13 @@ class SessionsViewModel @Inject constructor(
                         loading = false,
                     )
                 }
-                .onFailure { _state.value = _state.value.copy(loading = false, message = "加载失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(loading = false, message = context.getString(R.string.err_load_failed, it.message ?: "")) }
         }
     }
 
-    fun compact(key: String) = action(key, "已压缩历史") { ws.compactSession(it, key) }
+    fun compact(key: String) = action(key, context.getString(R.string.sessions_compacted)) { ws.compactSession(it, key) }
 
-    fun reset(key: String) = action(key, "已清空历史") { ws.resetSession(it, key) }
+    fun reset(key: String) = action(key, context.getString(R.string.sessions_cleared)) { ws.resetSession(it, key) }
 
     fun delete(key: String) {
         viewModelScope.launch {
@@ -63,7 +67,7 @@ class SessionsViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 busyKey = null,
                 sessions = if (ok) _state.value.sessions.filterNot { it.key == key } else _state.value.sessions,
-                message = if (ok) "已删除会话" else "删除失败",
+                message = if (ok) context.getString(R.string.sessions_deleted) else context.getString(R.string.common_delete_failed),
             )
         }
     }
@@ -73,7 +77,7 @@ class SessionsViewModel @Inject constructor(
             val s = settingsStore.current()
             _state.value = _state.value.copy(busyKey = key)
             val ok = runCatching { op(s) }.getOrDefault(false)
-            _state.value = _state.value.copy(busyKey = null, message = if (ok) okMsg else "操作失败")
+            _state.value = _state.value.copy(busyKey = null, message = if (ok) okMsg else context.getString(R.string.err_op_failed))
         }
     }
 }

@@ -1,5 +1,6 @@
 package xyz.limo060719.goclaw
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -37,11 +38,17 @@ import xyz.limo060719.goclaw.ui.settings.SkillsScreen
 import xyz.limo060719.goclaw.ui.settings.TracesScreen
 import xyz.limo060719.goclaw.ui.settings.UsageScreen
 import xyz.limo060719.goclaw.ui.theme.GoClawTheme
+import xyz.limo060719.goclaw.util.LocaleManager
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var settingsStore: SettingsStore
+
+    // Apply the in-app language before the Activity's resources are created.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleManager.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 必须在 super.onCreate 之前安装:启动窗口以 Splash 主题(固定浅色背景)绘制,

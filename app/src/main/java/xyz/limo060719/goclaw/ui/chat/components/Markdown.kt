@@ -48,7 +48,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 import kotlinx.coroutines.delay
 import xyz.limo060719.goclaw.ui.theme.CodeFontFamily
 
@@ -362,11 +364,11 @@ internal fun CodeBlock(code: String, lang: String) {
                 ) {
                     Icon(
                         if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
-                        contentDescription = "复制代码",
+                        contentDescription = stringResource(R.string.md_copy_code),
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text(if (copied) "已复制" else "复制", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(if (copied) R.string.common_copied else R.string.common_copy), style = MaterialTheme.typography.labelSmall)
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

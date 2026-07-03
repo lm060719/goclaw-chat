@@ -13,11 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.TraceInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,15 +36,15 @@ fun TracesScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("执行轨迹") },
+                title = { Text(stringResource(R.string.extras_traces_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = vm::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
             )
@@ -54,7 +56,7 @@ fun TracesScreen(
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
 
                 state.traces.isEmpty() ->
-                    Text("暂无轨迹", Modifier.align(Alignment.Center), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.traces_empty), Modifier.align(Alignment.Center), style = MaterialTheme.typography.bodyMedium)
 
                 else -> LazyColumn(
                     Modifier.fillMaxSize(),
@@ -70,8 +72,8 @@ fun TracesScreen(
     if (state.detailLoading || state.detail != null) {
         AlertDialog(
             onDismissRequest = vm::closeDetail,
-            confirmButton = { TextButton(onClick = vm::closeDetail) { Text("关闭") } },
-            title = { Text("轨迹详情") },
+            confirmButton = { TextButton(onClick = vm::closeDetail) { Text(stringResource(R.string.common_close)) } },
+            title = { Text(stringResource(R.string.traces_detail_title)) },
             text = {
                 if (state.detailLoading) {
                     Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {

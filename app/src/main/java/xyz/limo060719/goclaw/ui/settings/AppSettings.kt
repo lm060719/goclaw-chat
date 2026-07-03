@@ -23,7 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import android.app.Activity
+import xyz.limo060719.goclaw.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,6 +42,7 @@ import kotlinx.coroutines.launch
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.util.ImageUtil
+import xyz.limo060719.goclaw.util.LocaleManager
 import java.io.File
 import javax.inject.Inject
 
@@ -45,9 +50,16 @@ import javax.inject.Inject
 class AppSettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val store: SettingsStore,
+    private val localeManager: LocaleManager,
 ) : ViewModel() {
     val settings: StateFlow<GoClawSettings> = store.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, GoClawSettings())
+
+    /** Current app-language selection ("system" / "zh" / "en"). */
+    val language: String get() = localeManager.language
+
+    /** Persists the language; caller must recreate the Activity for it to take effect. */
+    fun setLanguage(code: String) { localeManager.language = code }
 
     fun setWechatUi(on: Boolean) = viewModelScope.launch { store.updateWechatUi(on) }
     fun setThemeMode(mode: String) = viewModelScope.launch { store.updateThemeMode(mode) }
@@ -70,14 +82,15 @@ fun SettingsScreen(
     vm: AppSettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.settings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -97,9 +110,9 @@ fun SettingsScreen(
                     Icon(Icons.Filled.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("AI 供应商", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.settings_ai_provider), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "后端地址、API 密钥、用户 ID、Agent、模型",
+                            stringResource(R.string.settings_ai_provider_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -114,14 +127,47 @@ fun SettingsScreen(
             // 外观
             SettingCard(color = MaterialTheme.colorScheme.surfaceContainer) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("外观", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(10.dp))
-                    val modes = listOf("system" to "跟随系统", "light" to "浅色", "dark" to "深色")
+                    val modes = listOf(
+                        "system" to stringResource(R.string.settings_follow_system),
+                        "light" to stringResource(R.string.settings_theme_light),
+                        "dark" to stringResource(R.string.settings_theme_dark),
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         modes.forEach { (key, label) ->
                             FilterChip(
                                 selected = s.themeMode == key,
                                 onClick = { vm.setThemeMode(key) },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 语言
+            SettingCard(color = MaterialTheme.colorScheme.surfaceContainer) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(10.dp))
+                    val current = vm.language
+                    val langs = listOf(
+                        LocaleManager.SYSTEM to stringResource(R.string.settings_follow_system),
+                        LocaleManager.ZH to stringResource(R.string.settings_language_zh),
+                        LocaleManager.EN to stringResource(R.string.settings_language_en),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        langs.forEach { (code, label) ->
+                            FilterChip(
+                                selected = current == code,
+                                onClick = {
+                                    if (current != code) {
+                                        vm.setLanguage(code)
+                                        // Recreate so the new locale applies to all resources.
+                                        (context as? Activity)?.recreate()
+                                    }
+                                },
                                 label = { Text(label) },
                             )
                         }
@@ -136,9 +182,9 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("仿微信 UI", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.settings_wechat_ui), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "聊天界面切换为微信样式，侧边栏从右上角「···」打开",
+                            stringResource(R.string.settings_wechat_ui_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -158,9 +204,9 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("使用后端 TTS（高音质）", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.settings_backend_tts), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "朗读回复时用后端语音合成（需后端配置 TTS provider），失败自动回退到设备 TTS。",
+                            stringResource(R.string.settings_backend_tts_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -176,9 +222,9 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("显示连接状态", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.settings_conn_status), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "在聊天界面左上角显示一个圆点：已连接为绿色，断开为红色。",
+                            stringResource(R.string.settings_conn_status_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -209,13 +255,13 @@ private fun WechatProfileCard(s: GoClawSettings, vm: AppSettingsViewModel) {
 
     SettingCard(color = MaterialTheme.colorScheme.surfaceContainer) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("微信样式 · 头像与名字", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.settings_wechat_profile), style = MaterialTheme.typography.titleSmall)
 
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                AvatarPicker("对方头像", s.assistantAvatar) {
+                AvatarPicker(stringResource(R.string.settings_avatar_assistant), s.assistantAvatar) {
                     asstPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
-                AvatarPicker("我的头像", s.selfAvatar) {
+                AvatarPicker(stringResource(R.string.settings_avatar_self), s.selfAvatar) {
                     selfPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
             }
@@ -223,21 +269,21 @@ private fun WechatProfileCard(s: GoClawSettings, vm: AppSettingsViewModel) {
             OutlinedTextField(
                 value = assistantName,
                 onValueChange = { assistantName = it },
-                label = { Text("对方名字（顶部标题）") },
+                label = { Text(stringResource(R.string.settings_name_assistant)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = selfName,
                 onValueChange = { selfName = it },
-                label = { Text("我的名字") },
+                label = { Text(stringResource(R.string.settings_name_self)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             Button(
                 onClick = { vm.saveProfile(selfName, assistantName) },
                 modifier = Modifier.align(Alignment.End),
-            ) { Text("保存名字") }
+            ) { Text(stringResource(R.string.settings_save_names)) }
         }
     }
 }

@@ -27,7 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.domain.model.FileRef
 
 /** MIME 类型 → 图标。气泡内文件与工具卡片输出共用。 */
@@ -84,7 +86,7 @@ internal fun FileRow(
             IconButton(onClick = { onDownload(file) }, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Filled.Download,
-                    contentDescription = "下载",
+                    contentDescription = stringResource(R.string.file_download),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

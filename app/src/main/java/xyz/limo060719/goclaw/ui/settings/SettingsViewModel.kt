@@ -1,12 +1,15 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.GoClawApi
@@ -38,6 +41,7 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsStore: SettingsStore,
     private val api: GoClawApi,
     private val ws: GoClawWsClient,
@@ -73,7 +77,7 @@ class SettingsViewModel @Inject constructor(
         val key = _state.value.agent.trim()
         if (key.isBlank()) return
         val next = (_state.value.savedAgents + key).distinct()
-        _state.value = _state.value.copy(savedAgents = next, message = "已保存 Agent：$key")
+        _state.value = _state.value.copy(savedAgents = next, message = context.getString(R.string.provider_saved_agent_fmt, key))
         viewModelScope.launch { settingsStore.updateSavedAgents(next) }
     }
 
@@ -86,7 +90,7 @@ class SettingsViewModel @Inject constructor(
     fun fetchAgents() {
         val st = _state.value
         if (st.baseUrl.isBlank() || st.apiKey.isBlank()) {
-            _state.value = st.copy(message = "请先填写后端地址和 API 密钥")
+            _state.value = st.copy(message = context.getString(R.string.provider_need_url_key))
             return
         }
         _state.value = st.copy(loadingAgents = true)
@@ -102,11 +106,11 @@ class SettingsViewModel @Inject constructor(
                     _state.value = _state.value.copy(
                         agents = list,
                         loadingAgents = false,
-                        message = if (list.isEmpty()) "未发现 Agent" else null,
+                        message = if (list.isEmpty()) context.getString(R.string.provider_no_agents) else null,
                     )
                 }
                 .onFailure {
-                    _state.value = _state.value.copy(loadingAgents = false, message = "加载失败：${it.message}")
+                    _state.value = _state.value.copy(loadingAgents = false, message = context.getString(R.string.err_load_failed, it.message ?: ""))
                 }
         }
     }
@@ -114,7 +118,7 @@ class SettingsViewModel @Inject constructor(
     fun testConnection() {
         val st = _state.value
         if (st.baseUrl.isBlank() || st.apiKey.isBlank()) {
-            _state.value = st.copy(message = "请先填写后端地址和 API 密钥")
+            _state.value = st.copy(message = context.getString(R.string.provider_need_url_key))
             return
         }
         _state.value = st.copy(testingConnection = true)
@@ -123,7 +127,7 @@ class SettingsViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 testingConnection = false,
                 gatewayOnline = version != null,
-                message = if (version != null) "已连接 ✓ 网关 $version" else "连接失败，请检查地址/密钥/网络",
+                message = if (version != null) context.getString(R.string.provider_connected_fmt, version) else context.getString(R.string.provider_connect_failed),
             )
         }
     }
@@ -141,7 +145,7 @@ class SettingsViewModel @Inject constructor(
     fun fetchProviders() {
         val st = _state.value
         if (st.baseUrl.isBlank() || st.apiKey.isBlank()) {
-            _state.value = st.copy(message = "请先填写后端地址和 API 密钥")
+            _state.value = st.copy(message = context.getString(R.string.provider_need_url_key))
             return
         }
         _state.value = st.copy(loadingProviders = true)
@@ -151,10 +155,10 @@ class SettingsViewModel @Inject constructor(
                     _state.value = _state.value.copy(
                         providers = list,
                         loadingProviders = false,
-                        message = if (list.isEmpty()) "未发现供应商" else null,
+                        message = if (list.isEmpty()) context.getString(R.string.provider_no_providers) else null,
                     )
                 }
-                .onFailure { _state.value = _state.value.copy(loadingProviders = false, message = "加载供应商失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(loadingProviders = false, message = context.getString(R.string.provider_load_providers_failed_fmt, it.message ?: "")) }
         }
     }
 
@@ -162,8 +166,8 @@ class SettingsViewModel @Inject constructor(
         _state.value = _state.value.copy(selectedProviderId = providerId, models = emptyList(), loadingModels = true)
         viewModelScope.launch {
             api.providerModels(snapshotSettings(), providerId)
-                .onSuccess { _state.value = _state.value.copy(models = it, loadingModels = false, message = if (it.isEmpty()) "该供应商无可用模型" else null) }
-                .onFailure { _state.value = _state.value.copy(loadingModels = false, message = "加载模型失败：${it.message}") }
+                .onSuccess { _state.value = _state.value.copy(models = it, loadingModels = false, message = if (it.isEmpty()) context.getString(R.string.provider_no_models) else null) }
+                .onFailure { _state.value = _state.value.copy(loadingModels = false, message = context.getString(R.string.provider_load_models_failed_fmt, it.message ?: "")) }
         }
     }
 
@@ -175,11 +179,11 @@ class SettingsViewModel @Inject constructor(
         val target = st.agents.firstOrNull { it.resolvedKey == st.agent }
         val agentId = (target?.id?.takeIf { it.isNotBlank() } ?: st.agent.trim())
         if (agentId.isBlank()) {
-            _state.value = st.copy(message = "请先在上方加载并选择一个 Agent")
+            _state.value = st.copy(message = context.getString(R.string.provider_select_agent_first))
             return
         }
         if (st.model.isBlank()) {
-            _state.value = st.copy(message = "请先选择模型")
+            _state.value = st.copy(message = context.getString(R.string.provider_select_model_first))
             return
         }
         val providerName = st.providers.firstOrNull { it.resolvedId == st.selectedProviderId }?.providerName
@@ -189,7 +193,7 @@ class SettingsViewModel @Inject constructor(
                 .getOrDefault(false)
             _state.value = _state.value.copy(
                 applyingModel = false,
-                message = if (ok) "已更新 Agent 模型为 ${st.model}" else "更新失败（可能需要管理员权限）",
+                message = if (ok) context.getString(R.string.provider_model_updated_fmt, st.model) else context.getString(R.string.provider_update_failed),
             )
         }
     }
@@ -208,7 +212,7 @@ class SettingsViewModel @Inject constructor(
                 )
             )
             settingsStore.updateSavedAgents(st.savedAgents)
-            _state.value = _state.value.copy(message = "已保存")
+            _state.value = _state.value.copy(message = context.getString(R.string.common_saved))
         }
     }
 }

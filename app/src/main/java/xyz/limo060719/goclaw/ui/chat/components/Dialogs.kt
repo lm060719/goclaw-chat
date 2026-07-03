@@ -30,7 +30,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 
 /** 重命名对话。 */
 @Composable
@@ -38,7 +40,7 @@ internal fun RenameDialog(initial: String, onConfirm: (String) -> Unit, onDismis
     var name by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("重命名对话") },
+        title = { Text(stringResource(R.string.dialog_rename_title)) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -51,9 +53,9 @@ internal fun RenameDialog(initial: String, onConfirm: (String) -> Unit, onDismis
             TextButton(
                 onClick = { onConfirm(name) },
                 enabled = name.isNotBlank(),
-            ) { Text("保存") }
+            ) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -62,14 +64,14 @@ internal fun RenameDialog(initial: String, onConfirm: (String) -> Unit, onDismis
 internal fun DeleteConfirmDialog(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("删除消息") },
-        text = { Text("确定删除选中的 $count 条消息吗？此操作无法撤销。") },
+        title = { Text(stringResource(R.string.dialog_delete_title)) },
+        text = { Text(stringResource(R.string.dialog_delete_msg, count)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("删除", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -81,10 +83,10 @@ internal fun MessageDetailView(text: String, onClose: () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             TopAppBar(
-                title = { Text("消息详情") },
+                title = { Text(stringResource(R.string.dialog_msg_detail)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -113,21 +115,21 @@ internal fun SelectionTopBar(
 ) {
     val enabled = count > 0
     TopAppBar(
-        title = { Text("已选择 $count 项") },
+        title = { Text(stringResource(R.string.dialog_selected_count, count)) },
         navigationIcon = {
             IconButton(onClick = onClose) {
-                Icon(Icons.Filled.Close, contentDescription = "取消")
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_cancel))
             }
         },
         actions = {
             IconButton(onClick = onCopy, enabled = enabled) {
-                Icon(Icons.Filled.ContentCopy, contentDescription = "复制")
+                Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.common_copy))
             }
             IconButton(onClick = onShare, enabled = enabled) {
-                Icon(Icons.Filled.Share, contentDescription = "分享")
+                Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.common_share))
             }
             IconButton(onClick = onDelete, enabled = enabled) {
-                Icon(Icons.Filled.Delete, contentDescription = "删除")
+                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.common_delete))
             }
         },
     )

@@ -30,9 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import xyz.limo060719.goclaw.R
 
 private data class Suggestion(
     val title: String,
@@ -45,10 +47,10 @@ private data class Suggestion(
 @Composable
 internal fun EmptyState(modifier: Modifier = Modifier, onSuggestion: (String) -> Unit) {
     val suggestions = listOf(
-        Suggestion("写一段文案", "帮你创作各种风格文案", Icons.Filled.EditNote, "帮我写一段文案："),
-        Suggestion("总结内容", "提炼要点，快速总结", Icons.Filled.Description, "帮我总结以下内容："),
-        Suggestion("生成代码", "生成代码片段或完整函数", Icons.Filled.Code, "帮我写一段代码，需求是："),
-        Suggestion("头脑风暴", "激发灵感，拓展思路", Icons.Filled.Lightbulb, "和我一起头脑风暴，主题是："),
+        Suggestion(stringResource(R.string.empty_sugg_copywriting_title), stringResource(R.string.empty_sugg_copywriting_desc), Icons.Filled.EditNote, stringResource(R.string.empty_sugg_copywriting_prompt)),
+        Suggestion(stringResource(R.string.empty_sugg_summary_title), stringResource(R.string.empty_sugg_summary_desc), Icons.Filled.Description, stringResource(R.string.empty_sugg_summary_prompt)),
+        Suggestion(stringResource(R.string.empty_sugg_code_title), stringResource(R.string.empty_sugg_code_desc), Icons.Filled.Code, stringResource(R.string.empty_sugg_code_prompt)),
+        Suggestion(stringResource(R.string.empty_sugg_brainstorm_title), stringResource(R.string.empty_sugg_brainstorm_desc), Icons.Filled.Lightbulb, stringResource(R.string.empty_sugg_brainstorm_prompt)),
     )
     Column(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -72,12 +74,12 @@ internal fun EmptyState(modifier: Modifier = Modifier, onSuggestion: (String) ->
         }
         Spacer(Modifier.height(24.dp))
         Text(
-            "你好，今天想聊点什么？",
+            stringResource(R.string.empty_greeting),
             style = MaterialTheme.typography.headlineSmall,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "我是 GoClaw，你的 AI 助手，随时为你提供帮助。",
+            stringResource(R.string.empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -138,7 +140,7 @@ internal fun AiBadge() {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Text(
-            "AI 助手",
+            stringResource(R.string.ai_badge),
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
         )

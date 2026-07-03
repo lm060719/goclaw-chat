@@ -23,6 +23,7 @@ import xyz.limo060719.goclaw.data.Conversation
 import xyz.limo060719.goclaw.data.ConversationMeta
 import xyz.limo060719.goclaw.data.ConversationStore
 import xyz.limo060719.goclaw.data.SettingsStore
+import xyz.limo060719.goclaw.data.remote.ServerMessage
 import xyz.limo060719.goclaw.domain.model.Attachment
 import xyz.limo060719.goclaw.domain.model.FileRef
 import xyz.limo060719.goclaw.domain.model.Role
@@ -362,9 +363,7 @@ class ChatViewModel @Inject constructor(
             repeat(12) {
                 if (currentConversationId != cid || _state.value.isStreaming) return@launch
                 if (!isPending(_state.value.messages.lastOrNull())) return@launch
-                val reply = repository.fetchServerHistory(cid, ak)
-                    .lastOrNull { it.role == "user" || it.role == "assistant" }
-                    ?.takeIf { it.role == "assistant" && it.content.isNotBlank() }?.content
+                val reply = replyForLatestTurn(repository.fetchServerHistory(cid, ak))
                 if (reply != null) {
                     val last = _state.value.messages.lastOrNull()
                     if (currentConversationId == cid && !_state.value.isStreaming && last != null) {
@@ -381,6 +380,26 @@ class ChatViewModel @Inject constructor(
                 kotlinx.coroutines.delay(2500)
             }
         }
+    }
+
+    /**
+     * The assistant reply to our *latest* user turn, or null if the server hasn't produced it yet.
+     *
+     * This deliberately ignores the previous turn's reply. It locates the server-transcript entry
+     * for our latest user message (the N-th `user` message, where N is how many user turns we've
+     * sent locally) and only accepts an `assistant` message that comes AFTER it. If the server
+     * hasn't yet recorded our latest user message — e.g. we backgrounded the app before `chat.send`
+     * landed — there is no such entry, so we return null and keep polling instead of surfacing the
+     * *previous* reply as the answer to this turn.
+     */
+    private fun replyForLatestTurn(history: List<ServerMessage>): String? {
+        val localUserCount = _state.value.messages.count { it.role == Role.USER }
+        if (localUserCount == 0) return null
+        val ourUserIdx = history
+            .mapIndexedNotNull { i, m -> if (m.role == "user") i else null }
+            .getOrNull(localUserCount - 1) ?: return null
+        return history.drop(ourUserIdx + 1)
+            .lastOrNull { it.role == "assistant" && it.content.isNotBlank() }?.content
     }
 
     private fun isPending(m: UiMessage?): Boolean =

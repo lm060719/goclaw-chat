@@ -1,9 +1,13 @@
 package xyz.limo060719.goclaw.data.remote
 
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlinx.serialization.json.JsonArray
@@ -151,7 +155,45 @@ class GoClawWsClient @Inject constructor(
     @ApplicationContext private val context: Context,
     private val http: GoClawHttp,
 ) {
+    /**
+     * A failure that happened BEFORE `chat.send` was dispatched (TCP/TLS setup, connect
+     * handshake, or the handshake watchdog). The message never reached the server, so the
+     * attempt can be retried without duplicating the user's message.
+     */
+    private class PreSendFailure(cause: Throwable) : Exception(cause.message, cause)
+
+    /**
+     * One chat round with automatic connection resilience: failures during the connect phase
+     * (before `chat.send` is dispatched — transient network blips, TLS hiccups, a stalled
+     * handshake) are retried transparently with backoff. Failures after the message was sent
+     * are NOT retried (the server may already be running the turn); they surface as [WsChatEvent.Failed]
+     * and the caller's history-recovery picks the reply up.
+     */
     fun chat(
+        settings: GoClawSettings,
+        agentId: String,
+        message: String,
+        sessionKey: String,
+        mediaPaths: List<String> = emptyList(),
+    ): Flow<WsChatEvent> = flow {
+        var attempt = 0
+        while (true) {
+            var retriable: Throwable? = null
+            chatAttempt(settings, agentId, message, sessionKey, mediaPaths).collect { ev ->
+                if (ev is WsChatEvent.Failed && ev.error is PreSendFailure) {
+                    if (attempt < MAX_CONNECT_RETRIES) retriable = ev.error
+                    else emit(WsChatEvent.Failed(ev.error.cause ?: ev.error))
+                } else {
+                    emit(ev)
+                }
+            }
+            if (retriable == null) return@flow
+            attempt++
+            delay(CONNECT_RETRY_DELAY_MS * attempt)
+        }
+    }
+
+    private fun chatAttempt(
         settings: GoClawSettings,
         agentId: String,
         message: String,
@@ -161,6 +203,11 @@ class GoClawWsClient @Inject constructor(
         val pendingToolInput = HashMap<String, String>()
         val accumulated = StringBuilder()
         val accumulatedThinking = StringBuilder()
+        /** Set once `chat.send` goes out — failures after this must not be retried. */
+        val sendDispatched = AtomicBoolean(false)
+        /** Set once a terminal event (Done/Failed) was emitted, so a following socket
+         *  close isn't misreported as a mid-stream drop. */
+        val finished = AtomicBoolean(false)
 
         val request = Request.Builder().url(http.url(settings.baseUrl, "/ws")).build()
 
@@ -210,13 +257,17 @@ class GoClawWsClient @Inject constructor(
                                     }
                                 }
                             }
+                            sendDispatched.set(true)
                             webSocket.send(send.toString())
                         } else {
+                            // A definitive server rejection (bad token etc.) — retrying won't help.
+                            finished.set(true)
                             trySend(WsChatEvent.Failed(IllegalStateException(errorMessage(obj) ?: context.getString(R.string.err_connect_failed))))
                             webSocket.close(1000, null)
                         }
                     }
                     "m" -> {
+                        finished.set(true)
                         if (ok) {
                             val payload = obj["payload"]?.jsonObject
                             val content = payload?.get("content")?.jsonPrimitive?.content
@@ -296,19 +347,43 @@ class GoClawWsClient @Inject constructor(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                trySend(WsChatEvent.Failed(t)); close()
+                if (finished.compareAndSet(false, true)) {
+                    trySend(WsChatEvent.Failed(if (sendDispatched.get()) t else PreSendFailure(t)))
+                }
+                close()
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                emitDropIfUnfinished()
                 webSocket.close(1000, null); close()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                emitDropIfUnfinished()
                 close()
+            }
+
+            /**
+             * The server closed the socket without a final `chat.send` response (gateway
+             * restart, idle kill, proxy timeout). Without this the flow would just end and
+             * the UI would spin forever — surface it as a failure so the caller's
+             * history-recovery kicks in.
+             */
+            private fun emitDropIfUnfinished() {
+                if (finished.compareAndSet(false, true)) {
+                    val cause = IOException(context.getString(R.string.err_conn_interrupted))
+                    trySend(WsChatEvent.Failed(if (sendDispatched.get()) cause else PreSendFailure(cause)))
+                }
             }
         }
 
         val ws = http.wsClient.newWebSocket(request, listener)
+        // Handshake watchdog: if the connect round-trip hasn't completed shortly, the socket
+        // is likely half-dead — cancel it, which surfaces as a retriable pre-send failure.
+        launch {
+            delay(CONNECT_WATCHDOG_MS)
+            if (!sendDispatched.get() && !finished.get()) ws.cancel()
+        }
         awaitClose { ws.cancel() }
     }
 
@@ -1160,5 +1235,14 @@ class GoClawWsClient @Inject constructor(
             (payload?.get(key) ?: top[key])?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }?.let { return it }
         }
         return null
+    }
+
+    private companion object {
+        /** Extra attempts after the first when the connect phase fails (message not yet sent). */
+        const val MAX_CONNECT_RETRIES = 2
+        /** Base backoff between connect retries (multiplied by the attempt number). */
+        const val CONNECT_RETRY_DELAY_MS = 800L
+        /** How long the open→connect-ack round-trip may take before the socket is declared dead. */
+        const val CONNECT_WATCHDOG_MS = 15_000L
     }
 }

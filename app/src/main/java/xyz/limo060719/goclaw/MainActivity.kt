@@ -15,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -40,6 +42,16 @@ import xyz.limo060719.goclaw.ui.settings.UsageScreen
 import xyz.limo060719.goclaw.ui.theme.GoClawTheme
 import xyz.limo060719.goclaw.util.LocaleManager
 import javax.inject.Inject
+
+/**
+ * Pops the back stack only if the current destination is still RESUMED. A pop immediately moves
+ * the outgoing screen out of RESUMED, so a rapid double-tap on the back arrow can't pop twice —
+ * the second pop used to also remove the root "chat" destination, leaving an empty NavHost
+ * (black screen).
+ */
+private fun NavHostController.safePopBackStack() {
+    if (currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) popBackStack()
+}
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -86,7 +98,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("extras") {
                             ExtraFeaturesScreen(
-                                onBack = { nav.popBackStack() },
+                                onBack = { nav.safePopBackStack() },
                                 onOpenSkills = { nav.navigate("skills") },
                                 onOpenApprovals = { nav.navigate("approvals") },
                                 onOpenSessions = { nav.navigate("sessions") },
@@ -100,43 +112,43 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("approvals") {
-                            ApprovalScreen(onBack = { nav.popBackStack() })
+                            ApprovalScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("sessions") {
-                            SessionsScreen(onBack = { nav.popBackStack() })
+                            SessionsScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("usage") {
-                            UsageScreen(onBack = { nav.popBackStack() })
+                            UsageScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("traces") {
-                            TracesScreen(onBack = { nav.popBackStack() })
+                            TracesScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("backend_skills") {
-                            BackendSkillsScreen(onBack = { nav.popBackStack() })
+                            BackendSkillsScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("pairing") {
-                            DevicePairingScreen(onBack = { nav.popBackStack() })
+                            DevicePairingScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("logs") {
-                            LogsScreen(onBack = { nav.popBackStack() })
+                            LogsScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("heartbeat") {
-                            HeartbeatScreen(onBack = { nav.popBackStack() })
+                            HeartbeatScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("api_keys") {
-                            ApiKeysScreen(onBack = { nav.popBackStack() })
+                            ApiKeysScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("settings") {
                             SettingsScreen(
-                                onBack = { nav.popBackStack() },
+                                onBack = { nav.safePopBackStack() },
                                 onOpenProvider = { nav.navigate("ai_provider") },
                             )
                         }
                         composable("ai_provider") {
-                            AiProviderScreen(onBack = { nav.popBackStack() })
+                            AiProviderScreen(onBack = { nav.safePopBackStack() })
                         }
                         composable("skills") {
-                            SkillsScreen(onBack = { nav.popBackStack() })
+                            SkillsScreen(onBack = { nav.safePopBackStack() })
                         }
                     }
                 }

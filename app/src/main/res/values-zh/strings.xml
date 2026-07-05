@@ -385,4 +385,5 @@
     <string name="err_empty_file">空文件</string>
     <string name="err_non_audio_fmt">非音频响应(%1$s)：%2$s</string>
     <string name="err_connect_failed">连接失败</string>
+    <string name="err_conn_interrupted">连接中断,正在尝试恢复回复…</string>
 </resources>

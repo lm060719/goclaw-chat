@@ -5,9 +5,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import xyz.limo060719.goclaw.data.remote.dto.ApiMessage
 import xyz.limo060719.goclaw.domain.model.UiMessage
 import java.io.File
@@ -42,7 +47,14 @@ data class Conversation(
  * File-based conversation history. An `index.json` holds the lightweight metas
  * (cheap to load for the drawer); each conversation's full content lives in
  * its own `<id>.json` and is only read when opened.
+ *
+ * All writes (JSON serialization + file I/O) run on a private single-threaded dispatcher:
+ * `save()` is called after every streamed block during a chat turn, and serializing the whole
+ * conversation on the main thread was dropping frames. The single thread keeps writes FIFO,
+ * so the last enqueued state always wins on disk. The metas [StateFlow] is still updated
+ * synchronously, so the UI (drawer) never waits on I/O.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class ConversationStore @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -51,12 +63,19 @@ class ConversationStore @Inject constructor(
     private val dir: File by lazy { File(context.filesDir, "conversations").apply { mkdirs() } }
     private val indexFile: File get() = File(dir, "index.json")
 
+    /** Serialized writer: one thread, FIFO, so concurrent saves can't interleave on a file. */
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+
+    /** Conversations whose latest state hasn't hit disk yet — [load] reads these first, so a
+     *  save→reopen race can never surface a stale file. */
+    private val pendingWrites = java.util.concurrent.ConcurrentHashMap<String, Conversation>()
+
     private val _conversations = MutableStateFlow<List<ConversationMeta>>(emptyList())
     val conversations: StateFlow<List<ConversationMeta>> = _conversations.asStateFlow()
 
     init {
         _conversations.value = loadIndex()
-        backfillAgentKeys()
+        ioScope.launch { backfillAgentKeys() }
     }
 
     /** One-time: fill in agent tags for conversations saved before the index tracked them. */
@@ -88,39 +107,48 @@ class ConversationStore @Inject constructor(
         )
     }
 
-    fun load(id: String): Conversation? = runCatching {
+    fun load(id: String): Conversation? = pendingWrites[id] ?: runCatching {
         val f = File(dir, "$id.json")
         if (!f.exists()) null
         else json.decodeFromString(Conversation.serializer(), f.readText())
     }.getOrNull()
 
     fun save(conversation: Conversation) {
-        runCatching {
-            File(dir, "${conversation.id}.json")
-                .writeText(json.encodeToString(Conversation.serializer(), conversation))
-        }
+        pendingWrites[conversation.id] = conversation
+        // Index/meta update is cheap — do it now so the drawer reflects the change instantly.
         val meta = ConversationMeta(
             conversation.id, conversation.title, conversation.updatedAt, conversation.agentKey,
         )
         _conversations.value = (_conversations.value.filterNot { it.id == meta.id } + meta)
             .sortedByDescending { it.updatedAt }
-        persistIndex()
+        // Serialization + writes happen off the caller thread (Conversation is immutable).
+        ioScope.launch {
+            runCatching {
+                File(dir, "${conversation.id}.json")
+                    .writeText(json.encodeToString(Conversation.serializer(), conversation))
+            }
+            // Drop the cache entry only if a newer save hasn't replaced it meanwhile.
+            pendingWrites.remove(conversation.id, conversation)
+            persistIndex()
+        }
     }
 
     fun rename(id: String, title: String) {
         val clean = title.trim().ifBlank { return }
-        load(id)?.let { save(it.copy(title = clean)) }
-            ?: run {
-                // No content file yet; still update the index entry.
-                _conversations.value = _conversations.value
-                    .map { if (it.id == id) it.copy(title = clean) else it }
-                persistIndex()
-            }
+        // Reflect the new title in the drawer immediately; rewrite the content file in background.
+        _conversations.value = _conversations.value
+            .map { if (it.id == id) it.copy(title = clean) else it }
+        ioScope.launch {
+            load(id)?.let { save(it.copy(title = clean)) } ?: persistIndex()
+        }
     }
 
     fun delete(id: String) {
-        runCatching { File(dir, "$id.json").delete() }
+        pendingWrites.remove(id)
         _conversations.value = _conversations.value.filterNot { it.id == id }
-        persistIndex()
+        ioScope.launch {
+            runCatching { File(dir, "$id.json").delete() }
+            persistIndex()
+        }
     }
 }

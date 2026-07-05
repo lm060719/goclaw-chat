@@ -385,4 +385,5 @@
     <string name="err_empty_file">Empty file</string>
     <string name="err_non_audio_fmt">Non-audio response (%1$s): %2$s</string>
     <string name="err_connect_failed">Connection failed</string>
+    <string name="err_conn_interrupted">Connection interrupted, recovering the reply…</string>
 </resources>

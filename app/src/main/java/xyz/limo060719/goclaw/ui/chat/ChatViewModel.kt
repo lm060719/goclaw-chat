@@ -359,19 +359,24 @@ class ChatViewModel @Inject constructor(
     }
 
     fun openConversation(id: String) {
-        val conv = conversationStore.load(id) ?: return
-        streamJob?.cancel()
-        currentConversationId = conv.id
-        currentTitle = conv.title.takeIf { it.isNotBlank() }
-        currentAgentKey = conv.agentKey
-        currentAssistantId = null
-        _state.value = ChatUiState(
-            messages = conv.messages.map { it.copy(streaming = false) },
-            agent = conv.agentKey ?: activeAgent,
-            ttsEnabled = _state.value.ttsEnabled,
-        )
-        // If the last turn is unanswered/cut off, the server ran it anyway — recover the reply.
-        recoverReply()
+        viewModelScope.launch {
+            // File read + JSON decode off the main thread — big conversations were janking the tap.
+            val conv = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                conversationStore.load(id)
+            } ?: return@launch
+            streamJob?.cancel()
+            currentConversationId = conv.id
+            currentTitle = conv.title.takeIf { it.isNotBlank() }
+            currentAgentKey = conv.agentKey
+            currentAssistantId = null
+            _state.value = ChatUiState(
+                messages = conv.messages.map { it.copy(streaming = false) },
+                agent = conv.agentKey ?: activeAgent,
+                ttsEnabled = _state.value.ttsEnabled,
+            )
+            // If the last turn is unanswered/cut off, the server ran it anyway — recover the reply.
+            recoverReply()
+        }
     }
 
     /** Called when the app returns to foreground — pick up any reply finished while away. */
@@ -436,10 +441,10 @@ class ChatViewModel @Inject constructor(
         m != null && (m.role == Role.USER || (m.role == Role.ASSISTANT && m.incomplete))
 
     fun deleteConversation(id: String) {
-        conversationStore.load(id)?.let { conv ->
-            conv.agentKey?.let { ak ->
-                viewModelScope.launch { repository.deleteServerSession(conv.id, ak) }
-            }
+        // The index meta already carries the agent key — no need to read the content file.
+        val agentKey = conversationStore.conversations.value.firstOrNull { it.id == id }?.agentKey
+        if (!agentKey.isNullOrBlank()) {
+            viewModelScope.launch { repository.deleteServerSession(id, agentKey) }
         }
         conversationStore.delete(id)
         if (id == currentConversationId) newConversation()

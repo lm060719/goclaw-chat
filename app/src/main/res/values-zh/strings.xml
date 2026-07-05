@@ -237,6 +237,9 @@
     <!-- Traces -->
     <string name="traces_empty">暂无轨迹</string>
     <string name="traces_detail_title">轨迹详情</string>
+    <string name="traces_view_raw">原始 JSON</string>
+    <string name="traces_view_visual">可视化</string>
+    <string name="traces_no_steps">无时间线步骤</string>
 
     <!-- Backend skills -->
     <string name="backend_skills_title">后端技能</string>

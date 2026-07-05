@@ -237,6 +237,9 @@
     <!-- Traces -->
     <string name="traces_empty">No traces</string>
     <string name="traces_detail_title">Trace details</string>
+    <string name="traces_view_raw">Raw JSON</string>
+    <string name="traces_view_visual">Visual</string>
+    <string name="traces_no_steps">No timeline steps</string>
 
     <!-- Backend skills -->
     <string name="backend_skills_title">Backend skills</string>

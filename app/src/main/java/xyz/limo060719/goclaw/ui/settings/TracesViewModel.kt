@@ -12,13 +12,14 @@ import kotlinx.coroutines.launch
 import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.GoClawApi
+import xyz.limo060719.goclaw.data.remote.TraceDetail
 import xyz.limo060719.goclaw.data.remote.TraceInfo
 import javax.inject.Inject
 
 data class TracesUiState(
     val traces: List<TraceInfo> = emptyList(),
     val loading: Boolean = false,
-    val detail: String? = null,
+    val detail: TraceDetail? = null,
     val detailLoading: Boolean = false,
     val message: String? = null,
 )

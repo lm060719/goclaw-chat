@@ -5,12 +5,12 @@
 /local.properties
 /.idea
 .DS_Store
-/build
+# Any module's build output (root, :app, :baselineprofile, and future modules).
+build/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
-/app/build
 /app/release
 
 *.apk

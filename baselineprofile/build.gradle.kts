@@ -37,10 +37,11 @@ android {
 }
 
 baselineProfile {
-    // Generate on the managed virtual device above (set useConnectedDevices = true
-    // and drop managedDevices to use a phone plugged into your machine instead).
-    managedDevices += "pixel6Api34"
-    useConnectedDevices = false
+    // Generate on a physical device plugged into this machine (both connected phones are
+    // rooted & API 35/36, which the generator fully supports — far faster/more reliable than
+    // downloading & booting the AOSP GMD emulator). To go back to the emulator instead, set
+    // useConnectedDevices = false and add `managedDevices += "pixel6Api34"`.
+    useConnectedDevices = true
 }
 
 dependencies {

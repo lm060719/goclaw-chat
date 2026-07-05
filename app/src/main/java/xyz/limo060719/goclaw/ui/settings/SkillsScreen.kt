@@ -13,9 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,10 +39,10 @@ fun SkillsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("技能") },
+                title = { Text(stringResource(R.string.skills_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -56,14 +58,14 @@ fun SkillsScreen(
                     )
                 },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("导入") },
+                text = { Text(stringResource(R.string.skills_import)) },
             )
         },
     ) { padding ->
         if (skills.isEmpty()) {
             Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "暂无技能。\n可导入 SKILL.md（含 frontmatter）、.json、.md/.txt，\n或包含 SKILL.md 的 .zip（如 GitHub 仓库 Download ZIP）。",
+                    stringResource(R.string.skills_empty),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -85,7 +87,7 @@ fun SkillsScreen(
                                     Text(skill.description, style = MaterialTheme.typography.bodySmall)
                                 }
                                 Text(
-                                    "${skill.instructions.length} 字符",
+                                    stringResource(R.string.skills_char_count_fmt, skill.instructions.length),
                                     style = MaterialTheme.typography.labelSmall,
                                 )
                             }
@@ -94,7 +96,7 @@ fun SkillsScreen(
                                 onCheckedChange = { vm.setEnabled(skill.id, it) },
                             )
                             IconButton(onClick = { vm.remove(skill.id) }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "删除")
+                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.common_delete))
                             }
                         }
                     }

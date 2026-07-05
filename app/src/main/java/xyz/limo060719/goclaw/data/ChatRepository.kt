@@ -1,8 +1,11 @@
 package xyz.limo060719.goclaw.data
 
+import android.content.Context
 import android.util.Base64
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.DownloadedFile
 import xyz.limo060719.goclaw.data.remote.GoClawApi
 import xyz.limo060719.goclaw.data.remote.GoClawWsClient
@@ -37,6 +40,7 @@ internal object ThinkingTags {
  * send the latest user message — no client-side history packing.
  */
 class ChatRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsStore: SettingsStore,
     private val ws: GoClawWsClient,
     private val skills: SkillRepository,
@@ -68,7 +72,7 @@ class ChatRepository @Inject constructor(
     /** Synthesizes speech for [text] via the backend TTS endpoint (Result carries the failure reason). */
     suspend fun synthesizeSpeech(text: String): Result<ByteArray> {
         val s = settingsStore.current()
-        if (!s.isConfigured || text.isBlank()) return Result.failure(IllegalStateException("未配置或空文本"))
+        if (!s.isConfigured || text.isBlank()) return Result.failure(IllegalStateException(context.getString(R.string.err_not_configured_or_empty)))
         return api.synthesizeTts(s, text)
     }
 
@@ -103,6 +107,13 @@ class ChatRepository @Inject constructor(
         runCatching { ws.deleteSession(s, sessionKeyOf(agentKey, conversationId)) }
     }
 
+    /** Probes the gateway (WS `status`) and returns whether it's reachable. */
+    suspend fun checkGatewayOnline(): Boolean {
+        val s = settingsStore.current()
+        if (!s.isConfigured) return false
+        return runCatching { ws.gatewayVersion(s) != null }.getOrDefault(false)
+    }
+
     /** Server-side transcript for a conversation (source of truth for context). */
     suspend fun fetchServerHistory(conversationId: String, agentKey: String): List<ServerMessage> {
         val s = settingsStore.current()
@@ -121,7 +132,7 @@ class ChatRepository @Inject constructor(
     ): Flow<ChatEvent> = flow {
         val settings = settingsStore.current()
         if (!settings.isConfigured) {
-            emit(ChatEvent.Error("尚未配置后端地址 / API 密钥。")); return@flow
+            emit(ChatEvent.Error(context.getString(R.string.err_not_configured))); return@flow
         }
 
         val agent = agentKey.ifBlank { "default" }
@@ -173,6 +184,6 @@ class ChatRepository @Inject constructor(
         val isTls = t is javax.net.ssl.SSLException ||
             raw.contains("BAD_RECORD_MAC", true) || raw.contains("DECRYPT", true) ||
             raw.contains("SSL", true)
-        return if (isTls) "连接中断(TLS 错误),与服务器的连接被断开,请重试。" else raw.ifBlank { "请求失败" }
+        return if (isTls) context.getString(R.string.err_tls) else raw.ifBlank { context.getString(R.string.err_request_failed) }
     }
 }

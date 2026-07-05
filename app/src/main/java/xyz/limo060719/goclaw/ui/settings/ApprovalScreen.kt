@@ -15,10 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.ExecApproval
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,15 +37,15 @@ fun ApprovalScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("审批管理") },
+                title = { Text(stringResource(R.string.extras_approvals_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = vm::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
             )
@@ -66,10 +68,10 @@ fun ApprovalScreen(
                             modifier = Modifier.size(40.dp),
                         )
                         Spacer(Modifier.height(12.dp))
-                        Text("暂无待审批的命令", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.approval_empty), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "当 Agent 请求执行 shell 命令时会出现在这里。",
+                            stringResource(R.string.approval_empty_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -119,7 +121,7 @@ private fun ApprovalCard(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    item.command.ifBlank { "(无命令内容)" },
+                    item.command.ifBlank { stringResource(R.string.approval_no_command) },
                     fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier
@@ -130,7 +132,7 @@ private fun ApprovalCard(
             if (item.cwd.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "目录:${item.cwd}",
+                    stringResource(R.string.approval_cwd_fmt, item.cwd),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -156,12 +158,12 @@ private fun ApprovalCard(
                 OutlinedButton(onClick = onDeny, enabled = enabled) {
                     Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("拒绝")
+                    Text(stringResource(R.string.common_reject))
                 }
                 Button(onClick = onApprove, enabled = enabled) {
                     Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("批准")
+                    Text(stringResource(R.string.common_approve))
                 }
             }
         }

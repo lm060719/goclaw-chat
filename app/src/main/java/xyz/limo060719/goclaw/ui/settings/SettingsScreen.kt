@@ -17,10 +17,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,10 +43,10 @@ fun AiProviderScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("AI 供应商") },
+                title = { Text(stringResource(R.string.settings_ai_provider)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -57,7 +59,7 @@ fun AiProviderScreen(
             OutlinedTextField(
                 value = state.baseUrl,
                 onValueChange = vm::onBaseUrl,
-                label = { Text("后端地址") },
+                label = { Text(stringResource(R.string.provider_backend_url)) },
                 placeholder = { Text("https://your-goclaw-backend") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -65,7 +67,7 @@ fun AiProviderScreen(
             OutlinedTextField(
                 value = state.apiKey,
                 onValueChange = vm::onApiKey,
-                label = { Text("API 密钥") },
+                label = { Text(stringResource(R.string.provider_api_key)) },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -73,7 +75,7 @@ fun AiProviderScreen(
             OutlinedTextField(
                 value = state.userId,
                 onValueChange = vm::onUserId,
-                label = { Text("用户 ID") },
+                label = { Text(stringResource(R.string.provider_user_id)) },
                 placeholder = { Text("X-GoClaw-User-Id") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -81,13 +83,13 @@ fun AiProviderScreen(
             OutlinedTextField(
                 value = state.agent,
                 onValueChange = vm::onAgent,
-                label = { Text("Agent 标识") },
+                label = { Text(stringResource(R.string.provider_agent_key)) },
                 singleLine = true,
                 trailingIcon = {
                     TextButton(onClick = vm::saveCurrentAgent, enabled = state.agent.isNotBlank()) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(2.dp))
-                        Text("保存")
+                        Text(stringResource(R.string.common_save))
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -105,10 +107,10 @@ fun AiProviderScreen(
                 OutlinedTextField(
                     value = state.model,
                     onValueChange = vm::onModel,
-                    label = { Text("模型（必填）") },
+                    label = { Text(stringResource(R.string.provider_model_required)) },
                     isError = state.model.isBlank(),
                     supportingText = if (state.model.isBlank()) {
-                        { Text("必须指定模型，否则无法连接") }
+                        { Text(stringResource(R.string.provider_model_required_hint)) }
                     } else null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -121,7 +123,7 @@ fun AiProviderScreen(
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("测试连接")
+                    Text(stringResource(R.string.provider_test_connection))
                 }
                 state.gatewayOnline?.let { online ->
                     Box(
@@ -131,7 +133,7 @@ fun AiProviderScreen(
                             .background(if (online) Color(0xFF22C55E) else MaterialTheme.colorScheme.error)
                     )
                     Text(
-                        if (online) "在线" else "离线",
+                        stringResource(if (online) R.string.provider_online else R.string.provider_offline),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -143,11 +145,11 @@ fun AiProviderScreen(
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text("从后端加载 Agent")
+                Text(stringResource(R.string.provider_load_agents))
             }
 
             if (state.agents.isNotEmpty()) {
-                Text("点击选择:", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.provider_tap_select), style = MaterialTheme.typography.labelLarge)
                 state.agents.forEach { a ->
                     val selected = a.resolvedKey == state.agent
                     ElevatedCard(
@@ -191,12 +193,12 @@ fun AiProviderScreen(
                 ) {
                     Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("修改供应商")
+                    Text(stringResource(R.string.provider_edit_provider))
                 }
             }
 
             Spacer(Modifier.height(4.dp))
-            Button(onClick = vm::save, modifier = Modifier.fillMaxWidth()) { Text("保存") }
+            Button(onClick = vm::save, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_save)) }
         }
     }
 }
@@ -211,9 +213,9 @@ private fun ModelConfigSection(
     onApply: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("模型配置（改 Agent 服务端模型）", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.provider_model_config_title), style = MaterialTheme.typography.titleSmall)
         Text(
-            "从供应商加载真实模型列表，应用到上方选中的 Agent。",
+            stringResource(R.string.provider_model_config_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -223,11 +225,11 @@ private fun ModelConfigSection(
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
             }
-            Text("加载供应商")
+            Text(stringResource(R.string.provider_load_providers))
         }
 
         if (state.providers.isNotEmpty()) {
-            Text("供应商：", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.provider_providers_label), style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.providers.forEach { p ->
                     FilterChip(
@@ -243,12 +245,12 @@ private fun ModelConfigSection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
-                Text("加载模型…", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.provider_loading_models), style = MaterialTheme.typography.bodySmall)
             }
         }
 
         if (state.models.isNotEmpty()) {
-            Text("模型：", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.provider_models_label), style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.models.forEach { m ->
                     FilterChip(
@@ -267,7 +269,7 @@ private fun ModelConfigSection(
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text("应用模型到当前 Agent")
+                Text(stringResource(R.string.provider_apply_model))
             }
         }
     }
@@ -283,7 +285,7 @@ private fun SavedAgentChips(
 ) {
     Column {
         Text(
-            "已保存的 Agent（点击切换）",
+            stringResource(R.string.provider_saved_agents),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -300,7 +302,7 @@ private fun SavedAgentChips(
                     trailingIcon = {
                         Icon(
                             Icons.Filled.Close,
-                            contentDescription = "移除",
+                            contentDescription = stringResource(R.string.common_remove),
                             modifier = Modifier.size(16.dp).clickable { onRemove(key) },
                         )
                     },

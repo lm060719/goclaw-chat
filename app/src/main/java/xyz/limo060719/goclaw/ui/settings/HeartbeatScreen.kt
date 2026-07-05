@@ -10,11 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.HeartbeatLog
 import xyz.limo060719.goclaw.data.remote.HeartbeatTarget
 import xyz.limo060719.goclaw.data.remote.dto.AgentInfo
@@ -34,15 +36,15 @@ fun HeartbeatScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("心跳 Heartbeat") },
+                title = { Text(stringResource(R.string.extras_heartbeat_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = vm::loadAgents) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新 Agent")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.heartbeat_refresh_agents))
                     }
                 },
             )
@@ -65,7 +67,7 @@ fun HeartbeatScreen(
 
             if (!state.hasAgent) {
                 Text(
-                    "请选择一个 Agent 以查看心跳配置。",
+                    stringResource(R.string.heartbeat_select_agent_prompt),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -91,7 +93,7 @@ private fun AgentPicker(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedLabel = agents.firstOrNull { it.resolvedKey == selected }?.display
-        ?: selected.ifBlank { "选择 Agent" }
+        ?: selected.ifBlank { stringResource(R.string.heartbeat_select_agent) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = selectedLabel,
@@ -126,13 +128,13 @@ private fun ProviderDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val label = providers.firstOrNull { it.resolvedId == selectedId }?.label
-        ?: currentName.ifBlank { "选择供应商" }
+        ?: currentName.ifBlank { stringResource(R.string.heartbeat_select_provider) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = label,
             onValueChange = {},
             readOnly = true,
-            label = { Text("供应商") },
+            label = { Text(stringResource(R.string.heartbeat_provider)) },
             trailingIcon = {
                 if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 else ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
@@ -141,7 +143,7 @@ private fun ProviderDropdown(
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             if (providers.isEmpty()) {
-                DropdownMenuItem(text = { Text("无可用供应商") }, onClick = { expanded = false }, enabled = false)
+                DropdownMenuItem(text = { Text(stringResource(R.string.heartbeat_no_providers)) }, onClick = { expanded = false }, enabled = false)
             }
             providers.forEach { p ->
                 DropdownMenuItem(
@@ -168,11 +170,11 @@ private fun ModelDropdown(
         onExpandedChange = { if (enabled) expanded = it },
     ) {
         OutlinedTextField(
-            value = selected.ifBlank { if (enabled) "选择模型" else "请先选择供应商" },
+            value = selected.ifBlank { stringResource(if (enabled) R.string.heartbeat_select_model else R.string.heartbeat_select_provider_first) },
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
-            label = { Text("模型") },
+            label = { Text(stringResource(R.string.heartbeat_model)) },
             trailingIcon = {
                 if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 else ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
@@ -181,7 +183,7 @@ private fun ModelDropdown(
         )
         ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
             if (models.isEmpty()) {
-                DropdownMenuItem(text = { Text("无可用模型") }, onClick = { expanded = false }, enabled = false)
+                DropdownMenuItem(text = { Text(stringResource(R.string.heartbeat_no_models)) }, onClick = { expanded = false }, enabled = false)
             }
             models.forEach { m ->
                 DropdownMenuItem(text = { Text(m) }, onClick = { expanded = false; onSelect(m) })
@@ -194,9 +196,9 @@ private fun ModelDropdown(
 private fun ConfigCard(state: HeartbeatUiState, vm: HeartbeatViewModel) {
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionHeader("配置", loading = state.loadingConfig)
+            SectionHeader(stringResource(R.string.heartbeat_config), loading = state.loadingConfig)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("启用心跳", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.heartbeat_enable), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 if (state.toggling) {
                     CircularProgressIndicator(Modifier.size(20.dp).padding(end = 8.dp), strokeWidth = 2.dp)
                 }
@@ -205,7 +207,7 @@ private fun ConfigCard(state: HeartbeatUiState, vm: HeartbeatViewModel) {
             OutlinedTextField(
                 value = state.intervalMinutes,
                 onValueChange = vm::onIntervalMinutes,
-                label = { Text("间隔（分钟，最小 5）") },
+                label = { Text(stringResource(R.string.heartbeat_interval)) },
                 singleLine = true,
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
@@ -213,7 +215,7 @@ private fun ConfigCard(state: HeartbeatUiState, vm: HeartbeatViewModel) {
             OutlinedTextField(
                 value = state.prompt,
                 onValueChange = vm::onPrompt,
-                label = { Text("提示词 Prompt") },
+                label = { Text(stringResource(R.string.heartbeat_prompt)) },
                 minLines = 2,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -234,11 +236,11 @@ private fun ConfigCard(state: HeartbeatUiState, vm: HeartbeatViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = vm::test, enabled = !state.testing, modifier = Modifier.weight(1f)) {
                     if (state.testing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text("立即测试")
+                    else Text(stringResource(R.string.heartbeat_test_now))
                 }
                 Button(onClick = vm::saveConfig, enabled = !state.saving, modifier = Modifier.weight(1f)) {
                     if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text("保存配置")
+                    else Text(stringResource(R.string.heartbeat_save_config))
                 }
             }
         }
@@ -253,18 +255,18 @@ private fun ChecklistCard(state: HeartbeatUiState, vm: HeartbeatViewModel) {
             OutlinedTextField(
                 value = state.checklist,
                 onValueChange = vm::onChecklist,
-                label = { Text("上下文文件内容") },
+                label = { Text(stringResource(R.string.heartbeat_context_content)) },
                 minLines = 4,
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = vm::loadChecklist, enabled = !state.loadingChecklist, modifier = Modifier.weight(1f)) {
-                    Text("重新读取")
+                    Text(stringResource(R.string.heartbeat_reload))
                 }
                 Button(onClick = vm::saveChecklist, enabled = !state.savingChecklist, modifier = Modifier.weight(1f)) {
                     if (state.savingChecklist) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text("保存")
+                    else Text(stringResource(R.string.common_save))
                 }
             }
         }
@@ -276,11 +278,11 @@ private fun LogsCard(state: HeartbeatUiState, onRefresh: () -> Unit) {
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionHeader("执行日志", loading = state.loadingLogs, modifier = Modifier.weight(1f))
-                IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, contentDescription = "刷新") }
+                SectionHeader(stringResource(R.string.heartbeat_logs), loading = state.loadingLogs, modifier = Modifier.weight(1f))
+                IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh)) }
             }
             if (state.logs.isEmpty() && !state.loadingLogs) {
-                Text("暂无日志", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.heartbeat_no_logs), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 state.logs.forEach { LogItem(it) }
             }
@@ -315,11 +317,11 @@ private fun TargetsCard(state: HeartbeatUiState, onRefresh: () -> Unit) {
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionHeader("投递目标", loading = state.loadingTargets, modifier = Modifier.weight(1f))
-                IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, contentDescription = "刷新") }
+                SectionHeader(stringResource(R.string.heartbeat_targets), loading = state.loadingTargets, modifier = Modifier.weight(1f))
+                IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh)) }
             }
             if (state.targets.isEmpty() && !state.loadingTargets) {
-                Text("暂无投递目标", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.heartbeat_no_targets), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 state.targets.forEach { TargetItem(it) }
             }

@@ -1,0 +1,388 @@
+<resources>
+    <string name="app_name">GoClaw Chat</string>
+
+    <!-- Common -->
+    <string name="common_back">返回</string>
+    <string name="common_save">保存</string>
+    <string name="common_saved">已保存</string>
+    <string name="common_copied">已复制</string>
+    <string name="common_menu">菜单</string>
+    <string name="common_close">关闭</string>
+    <string name="common_delete">删除</string>
+    <string name="common_copy">复制</string>
+    <string name="common_share">分享</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_confirm">确定</string>
+    <string name="common_loading">加载中…</string>
+    <string name="common_remove">移除</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">设置</string>
+    <string name="settings_ai_provider">AI 供应商</string>
+    <string name="settings_ai_provider_desc">后端地址、API 密钥、用户 ID、Agent、模型</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_follow_system">跟随系统</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_zh">中文</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_wechat_ui">仿微信 UI</string>
+    <string name="settings_wechat_ui_desc">聊天界面切换为微信样式，侧边栏从右上角「···」打开</string>
+    <string name="settings_backend_tts">使用后端 TTS（高音质）</string>
+    <string name="settings_backend_tts_desc">朗读回复时用后端语音合成（需后端配置 TTS provider），失败自动回退到设备 TTS。</string>
+    <string name="settings_conn_status">显示连接状态</string>
+    <string name="settings_conn_status_desc">在聊天界面左上角显示一个圆点：已连接为绿色，断开为红色。</string>
+    <string name="settings_wechat_profile">微信样式 · 头像与名字</string>
+    <string name="settings_avatar_assistant">对方头像</string>
+    <string name="settings_avatar_self">我的头像</string>
+    <string name="settings_name_assistant">对方名字（顶部标题）</string>
+    <string name="settings_name_self">我的名字</string>
+    <string name="settings_save_names">保存名字</string>
+
+    <!-- Chat -->
+    <string name="chat_toggle_tts">切换语音播报</string>
+    <string name="chat_new_conversation">新建对话</string>
+    <string name="chat_share_to">分享到</string>
+    <string name="chat_untitled">新对话</string>
+    <string name="chat_voice_label">🎤 语音</string>
+    <string name="ai_badge">AI 助手</string>
+
+    <!-- Input bar -->
+    <string name="chat_add_image">添加图片</string>
+    <string name="chat_add_file">添加文件</string>
+    <string name="chat_hold_to_talk">按住发送语音</string>
+    <string name="chat_input_continue">继续输入…</string>
+    <string name="chat_input_hint">输入消息</string>
+    <string name="chat_stop">停止</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_recording">正在录音…</string>
+    <string name="chat_release_to_send">松开发送</string>
+
+    <!-- Drawer -->
+    <string name="drawer_search">搜索历史对话</string>
+    <string name="drawer_history">历史对话</string>
+    <string name="drawer_history_empty">暂无历史对话</string>
+    <string name="drawer_history_no_match">未找到匹配的对话</string>
+    <string name="drawer_delete_conversation">删除对话</string>
+    <string name="drawer_extras">附加功能</string>
+
+    <!-- Empty state -->
+    <string name="empty_sugg_copywriting_title">写一段文案</string>
+    <string name="empty_sugg_copywriting_desc">帮你创作各种风格文案</string>
+    <string name="empty_sugg_copywriting_prompt">帮我写一段文案：</string>
+    <string name="empty_sugg_summary_title">总结内容</string>
+    <string name="empty_sugg_summary_desc">提炼要点，快速总结</string>
+    <string name="empty_sugg_summary_prompt">帮我总结以下内容：</string>
+    <string name="empty_sugg_code_title">生成代码</string>
+    <string name="empty_sugg_code_desc">生成代码片段或完整函数</string>
+    <string name="empty_sugg_code_prompt">帮我写一段代码，需求是：</string>
+    <string name="empty_sugg_brainstorm_title">头脑风暴</string>
+    <string name="empty_sugg_brainstorm_desc">激发灵感，拓展思路</string>
+    <string name="empty_sugg_brainstorm_prompt">和我一起头脑风暴，主题是：</string>
+    <string name="empty_greeting">你好，今天想聊点什么？</string>
+    <string name="empty_subtitle">我是 GoClaw，你的 AI 助手，随时为你提供帮助。</string>
+
+    <!-- Message bubble -->
+    <string name="msg_multiselect">多选</string>
+    <string name="msg_thinking_active">正在思考…</string>
+    <string name="msg_thinking">思考过程</string>
+    <string name="msg_thinking_collapse">收起思考</string>
+    <string name="msg_thinking_expand">展开思考</string>
+
+    <!-- Tool card -->
+    <string name="tool_prefix">工具 · %1$s</string>
+    <string name="tool_toggle">展开/收起</string>
+    <string name="tool_args">参数</string>
+    <string name="tool_result">结果</string>
+    <string name="tool_output_files">输出文件</string>
+
+    <!-- Markdown / files -->
+    <string name="md_copy_code">复制代码</string>
+    <string name="file_download">下载</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_rename_title">重命名对话</string>
+    <string name="dialog_delete_title">删除消息</string>
+    <string name="dialog_delete_msg">确定删除选中的 %1$d 条消息吗？此操作无法撤销。</string>
+    <string name="dialog_msg_detail">消息详情</string>
+    <string name="dialog_selected_count">已选择 %1$d 项</string>
+
+    <!-- Chat errors / system messages -->
+    <string name="err_audio_unplayable">音频无法播放</string>
+    <string name="err_backend_tts">后端 TTS 不可用（%1$s），已改用设备朗读</string>
+    <string name="err_image_load">无法加载图片</string>
+    <string name="err_not_configured">尚未配置后端地址 / API 密钥。</string>
+    <string name="msg_saved_to">已保存到：%1$s</string>
+    <string name="err_save_failed">保存失败</string>
+    <string name="err_download_failed">下载失败：%1$s</string>
+    <string name="err_file_unreachable">文件不可达</string>
+    <string name="err_attach_upload">附件上传失败</string>
+    <string name="msg_attach_prompt">请查看我发送的附件并处理。</string>
+    <string name="err_record_start">无法开始录音，请检查麦克风权限</string>
+    <string name="err_record_too_short">说话时间太短</string>
+    <string name="err_voice_upload">语音上传失败</string>
+    <string name="msg_voice_prompt">请把这条语音转写成文字并回复。</string>
+    <string name="tool_copy_label">[工具 %1$s]\n%2$s</string>
+
+    <!-- Shared (admin) -->
+    <string name="common_refresh">刷新</string>
+    <string name="common_done">完成</string>
+    <string name="common_approve">批准</string>
+    <string name="common_reject">拒绝</string>
+    <string name="common_approved">已批准</string>
+    <string name="common_rejected">已拒绝</string>
+    <string name="common_revoked">已撤销</string>
+    <string name="common_revoke">撤销</string>
+    <string name="common_deleted">已删除</string>
+    <string name="err_load_failed">加载失败：%1$s</string>
+    <string name="err_op_failed">操作失败</string>
+    <string name="err_op_failed_fmt">操作失败：%1$s</string>
+    <string name="err_delete_failed_fmt">删除失败：%1$s</string>
+    <string name="err_not_configured_short">尚未配置后端</string>
+
+    <!-- AI provider screen -->
+    <string name="provider_backend_url">后端地址</string>
+    <string name="provider_api_key">API 密钥</string>
+    <string name="provider_user_id">用户 ID</string>
+    <string name="provider_agent_key">Agent 标识</string>
+    <string name="provider_model_required">模型（必填）</string>
+    <string name="provider_model_required_hint">必须指定模型，否则无法连接</string>
+    <string name="provider_test_connection">测试连接</string>
+    <string name="provider_online">在线</string>
+    <string name="provider_offline">离线</string>
+    <string name="provider_load_agents">从后端加载 Agent</string>
+    <string name="provider_tap_select">点击选择:</string>
+    <string name="provider_edit_provider">修改供应商</string>
+    <string name="provider_model_config_title">模型配置（改 Agent 服务端模型）</string>
+    <string name="provider_model_config_desc">从供应商加载真实模型列表，应用到上方选中的 Agent。</string>
+    <string name="provider_load_providers">加载供应商</string>
+    <string name="provider_providers_label">供应商：</string>
+    <string name="provider_loading_models">加载模型…</string>
+    <string name="provider_models_label">模型：</string>
+    <string name="provider_apply_model">应用模型到当前 Agent</string>
+    <string name="provider_saved_agents">已保存的 Agent（点击切换）</string>
+    <string name="provider_saved_agent_fmt">已保存 Agent：%1$s</string>
+    <string name="provider_need_url_key">请先填写后端地址和 API 密钥</string>
+    <string name="provider_no_agents">未发现 Agent</string>
+    <string name="provider_connected_fmt">已连接 ✓ 网关 %1$s</string>
+    <string name="provider_connect_failed">连接失败，请检查地址/密钥/网络</string>
+    <string name="provider_no_providers">未发现供应商</string>
+    <string name="provider_load_providers_failed_fmt">加载供应商失败：%1$s</string>
+    <string name="provider_no_models">该供应商无可用模型</string>
+    <string name="provider_load_models_failed_fmt">加载模型失败：%1$s</string>
+    <string name="provider_select_agent_first">请先在上方加载并选择一个 Agent</string>
+    <string name="provider_select_model_first">请先选择模型</string>
+    <string name="provider_model_updated_fmt">已更新 Agent 模型为 %1$s</string>
+    <string name="provider_update_failed">更新失败（可能需要管理员权限）</string>
+
+    <!-- Extra features hub -->
+    <string name="extras_title">附加功能</string>
+    <string name="extras_skills_title">技能（本地注入）</string>
+    <string name="extras_skills_desc">导入技能，作为指令注入到对话</string>
+    <string name="extras_backend_skills_title">后端技能（可执行）</string>
+    <string name="extras_backend_skills_desc">上传 .zip 到后端，可执行脚本、按需加载</string>
+    <string name="extras_approvals_title">审批管理</string>
+    <string name="extras_approvals_desc">审批 Agent 待处理的 shell 命令</string>
+    <string name="extras_sessions_title">会话管理</string>
+    <string name="extras_sessions_desc">浏览服务端会话，压缩超长历史、清空或删除</string>
+    <string name="extras_usage_title">用量 &amp; 费用</string>
+    <string name="extras_usage_desc">查看 Token 消耗与费用统计</string>
+    <string name="extras_traces_title">执行轨迹</string>
+    <string name="extras_traces_desc">查看 Agent 运行的 LLM 调用轨迹</string>
+    <string name="extras_pairing_title">设备配对</string>
+    <string name="extras_pairing_desc">生成配对码，批准、撤销跨渠道设备绑定</string>
+    <string name="extras_logs_title">实时日志</string>
+    <string name="extras_logs_desc">实时查看后端日志流，可按级别过滤</string>
+    <string name="extras_heartbeat_title">心跳 Heartbeat</string>
+    <string name="extras_heartbeat_desc">配置定时心跳、编辑 HEARTBEAT.md、查看执行日志</string>
+    <string name="extras_api_keys_title">API 密钥</string>
+    <string name="extras_api_keys_desc">创建、查看与撤销后端 API 密钥</string>
+
+    <!-- Shared extra -->
+    <string name="common_delete_failed">删除失败</string>
+    <string name="err_file_read">无法读取文件</string>
+    <string name="err_request_failed">请求失败</string>
+
+    <!-- Approvals -->
+    <string name="approval_empty">暂无待审批的命令</string>
+    <string name="approval_empty_desc">当 Agent 请求执行 shell 命令时会出现在这里。</string>
+    <string name="approval_no_command">(无命令内容)</string>
+    <string name="approval_cwd_fmt">目录:%1$s</string>
+
+    <!-- Sessions -->
+    <string name="sessions_empty">暂无服务端会话</string>
+    <string name="sessions_msg_count_fmt">%1$d 条消息</string>
+    <string name="sessions_compact">压缩</string>
+    <string name="sessions_clear">清空</string>
+    <string name="sessions_compacted">已压缩历史</string>
+    <string name="sessions_cleared">已清空历史</string>
+    <string name="sessions_deleted">已删除会话</string>
+
+    <!-- Usage -->
+    <string name="usage_period_fmt">周期：%1$s</string>
+    <string name="usage_total_tokens">总 Token</string>
+    <string name="usage_input_tokens">输入 Token</string>
+    <string name="usage_output_tokens">输出 Token</string>
+    <string name="usage_requests">请求数</string>
+    <string name="usage_cost_usd">费用 (USD)</string>
+    <string name="usage_llm_calls">LLM 调用</string>
+    <string name="usage_tool_calls">工具调用</string>
+    <string name="usage_unique_users">独立用户</string>
+    <string name="usage_errors">错误数</string>
+    <string name="usage_empty">暂无用量数据</string>
+    <string name="usage_raw_title">原始返回（调试 · 字段对齐用）</string>
+    <string name="usage_raw_desc">数值为 0 多半是字段名不同。把下面这段发给开发者即可精确对齐：</string>
+
+    <!-- Traces -->
+    <string name="traces_empty">暂无轨迹</string>
+    <string name="traces_detail_title">轨迹详情</string>
+    <string name="traces_view_raw">原始 JSON</string>
+    <string name="traces_view_visual">可视化</string>
+    <string name="traces_no_steps">无时间线步骤</string>
+
+    <!-- Backend skills -->
+    <string name="backend_skills_title">后端技能</string>
+    <string name="backend_skills_uploading">上传中…</string>
+    <string name="backend_skills_upload">上传 .zip</string>
+    <string name="backend_skills_empty">暂无后端技能</string>
+    <string name="backend_skills_empty_desc">上传 SKILL.md 格式的 .zip（可含脚本/资源），由后端执行。</string>
+    <string name="backend_skills_no_skillmd">未找到 SKILL.md（请选择含 SKILL.md 的技能包 .zip）</string>
+    <string name="backend_skills_uploaded_fmt">已上传 %1$d 个技能</string>
+    <string name="backend_skills_upload_partial_fmt">上传 %1$d/%2$d 个；失败：%3$s</string>
+
+    <!-- Device pairing -->
+    <string name="pairing_request_code">请求配对码</string>
+    <string name="pairing_empty">暂无配对</string>
+    <string name="pairing_empty_desc">点击「请求配对码」为某个渠道生成配对码，批准后即可绑定设备。</string>
+    <string name="pairing_approved_by">批准人</string>
+    <string name="pairing_created_at">创建于</string>
+    <string name="pairing_status_approved">已批准</string>
+    <string name="pairing_status_pending">待处理</string>
+    <string name="pairing_channel">渠道 (channel)</string>
+    <string name="pairing_channel_hint">如 telegram</string>
+    <string name="pairing_request">请求</string>
+    <string name="pairing_code_title">配对码</string>
+    <string name="pairing_code_desc">在目标设备/渠道输入此配对码以完成绑定。</string>
+    <string name="pairing_need_channel_chat">请填写渠道与 Chat ID。</string>
+    <string name="pairing_no_code_approve">该配对缺少配对码，无法批准。</string>
+    <string name="pairing_no_code_deny">该配对缺少配对码，无法拒绝。</string>
+    <string name="pairing_no_channel_revoke">该配对缺少 channel / senderId，无法撤销。</string>
+    <string name="pairing_requested">已批准</string>
+    <string name="pairing_denied">已拒绝</string>
+
+    <!-- Logs -->
+    <string name="logs_title">实时日志</string>
+    <string name="logs_level_all">全部</string>
+    <string name="logs_copy_all">复制全部</string>
+    <string name="logs_clear">清空</string>
+    <string name="logs_start">开始</string>
+    <string name="logs_stop">停止</string>
+    <string name="logs_waiting">正在等待日志…</string>
+    <string name="logs_tap_start">点击「开始」拉取实时日志</string>
+    <string name="logs_stream_broken_fmt">日志流中断：%1$s</string>
+
+    <!-- Heartbeat -->
+    <string name="heartbeat_title">心跳 Heartbeat</string>
+    <string name="heartbeat_refresh_agents">刷新 Agent</string>
+    <string name="heartbeat_select_agent_prompt">请选择一个 Agent 以查看心跳配置。</string>
+    <string name="heartbeat_select_agent">选择 Agent</string>
+    <string name="heartbeat_select_provider">选择供应商</string>
+    <string name="heartbeat_provider">供应商</string>
+    <string name="heartbeat_no_providers">无可用供应商</string>
+    <string name="heartbeat_select_model">选择模型</string>
+    <string name="heartbeat_select_provider_first">请先选择供应商</string>
+    <string name="heartbeat_model">模型</string>
+    <string name="heartbeat_no_models">无可用模型</string>
+    <string name="heartbeat_config">配置</string>
+    <string name="heartbeat_enable">启用心跳</string>
+    <string name="heartbeat_interval">间隔（分钟，最小 5）</string>
+    <string name="heartbeat_prompt">提示词 Prompt</string>
+    <string name="heartbeat_test_now">立即测试</string>
+    <string name="heartbeat_save_config">保存配置</string>
+    <string name="heartbeat_context_content">上下文文件内容</string>
+    <string name="heartbeat_reload">重新读取</string>
+    <string name="heartbeat_logs">执行日志</string>
+    <string name="heartbeat_no_logs">暂无日志</string>
+    <string name="heartbeat_targets">投递目标</string>
+    <string name="heartbeat_no_targets">暂无投递目标</string>
+    <string name="heartbeat_select_agent_msg">请先选择 Agent。</string>
+    <string name="heartbeat_interval_min">间隔最小为 5 分钟。</string>
+    <string name="heartbeat_config_saved">已保存配置</string>
+    <string name="heartbeat_enabled">已启用</string>
+    <string name="heartbeat_disabled">已禁用</string>
+    <string name="heartbeat_triggered">已触发一次心跳</string>
+    <string name="heartbeat_trigger_failed">触发失败</string>
+    <string name="heartbeat_trigger_failed_fmt">触发失败：%1$s</string>
+    <string name="heartbeat_checklist_saved">已保存 HEARTBEAT.md</string>
+    <string name="heartbeat_load_agents_failed_fmt">加载 Agent 失败：%1$s</string>
+    <string name="heartbeat_load_config_failed_fmt">读取配置失败：%1$s</string>
+    <string name="heartbeat_save_failed">保存失败</string>
+    <string name="heartbeat_save_failed_fmt">保存失败：%1$s</string>
+    <string name="heartbeat_read_checklist_failed_fmt">读取 HEARTBEAT.md 失败：%1$s</string>
+    <string name="heartbeat_read_logs_failed_fmt">读取日志失败：%1$s</string>
+    <string name="heartbeat_read_targets_failed_fmt">读取投递目标失败：%1$s</string>
+
+    <!-- API keys -->
+    <string name="apikeys_save_now_title">请立即保存此 Key</string>
+    <string name="apikeys_save_now_note">已自动保存到本机，之后可在列表点「查看密钥」再次查看/复制。</string>
+    <string name="apikeys_key_title">密钥</string>
+    <string name="apikeys_key_note">此密钥保存在本机，请妥善保管。</string>
+    <string name="apikeys_create_key">创建 Key</string>
+    <string name="apikeys_empty">暂无 API Key</string>
+    <string name="apikeys_expires_fmt">到期：%1$s</string>
+    <string name="apikeys_created_fmt">创建于：%1$s</string>
+    <string name="apikeys_stored_locally">🔒 密钥已存于本机</string>
+    <string name="apikeys_view_key">查看密钥</string>
+    <string name="apikeys_create_title">创建 API Key</string>
+    <string name="apikeys_name">名称</string>
+    <string name="apikeys_scopes">权限范围（可多选）</string>
+    <string name="apikeys_validity">有效期</string>
+    <string name="apikeys_custom_days">自定义天数</string>
+    <string name="apikeys_create">创建</string>
+    <string name="apikeys_need_name">请填写名称。</string>
+    <string name="apikeys_need_scope">请至少选择一个权限。</string>
+    <string name="apikeys_create_failed">创建失败</string>
+    <string name="apikeys_create_failed_fmt">创建失败：%1$s</string>
+    <string name="apikeys_revoke_failed_fmt">撤销失败：%1$s</string>
+    <string name="apikeys_scope_admin">完全管理员权限</string>
+    <string name="apikeys_scope_read">只读权限</string>
+    <string name="apikeys_scope_write">读写权限</string>
+    <string name="apikeys_scope_approvals">管理执行审批</string>
+    <string name="apikeys_scope_pairing">管理设备配对</string>
+    <string name="apikeys_scope_provision">开通新租户</string>
+    <string name="apikeys_days_fmt">%1$d 天</string>
+    <string name="apikeys_custom">自定义</string>
+
+    <!-- Skills (local) -->
+    <string name="skills_title">技能</string>
+    <string name="skills_import">导入</string>
+    <string name="skills_empty">暂无技能。\n可导入 SKILL.md（含 frontmatter）、.json、.md/.txt，\n或包含 SKILL.md 的 .zip（如 GitHub 仓库 Download ZIP）。</string>
+    <string name="skills_char_count_fmt">%1$d 字符</string>
+    <string name="skills_import_none">未找到可导入的技能</string>
+    <string name="skills_imported_one_fmt">已导入：%1$s</string>
+    <string name="skills_imported_many_fmt">已导入 %1$d 个技能：%2$s</string>
+    <string name="skills_import_failed_fmt">导入失败：%1$s</string>
+
+    <!-- Chat repository errors -->
+    <string name="err_tls">连接中断(TLS 错误),与服务器的连接被断开,请重试。</string>
+    <string name="err_not_configured_or_empty">未配置或空文本</string>
+
+    <!-- Speech recognition errors -->
+    <string name="err_speech_audio">录音错误</string>
+    <string name="err_speech_client">客户端错误</string>
+    <string name="err_speech_permission">缺少麦克风权限</string>
+    <string name="err_speech_network">网络错误</string>
+    <string name="err_speech_network_timeout">网络超时</string>
+    <string name="err_speech_no_match">未识别到语音</string>
+    <string name="err_speech_busy">识别器忙碌</string>
+    <string name="err_speech_timeout">未检测到语音输入</string>
+    <string name="err_speech_generic_fmt">语音识别错误(%1$d)</string>
+
+    <!-- Data-layer errors -->
+    <string name="err_skill_no_skillmd">未找到可导入的技能（缺少 SKILL.md）</string>
+    <string name="err_empty_response">空响应</string>
+    <string name="err_empty_file">空文件</string>
+    <string name="err_non_audio_fmt">非音频响应(%1$s)：%2$s</string>
+    <string name="err_connect_failed">连接失败</string>
+</resources>

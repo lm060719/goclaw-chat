@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.BackendSkill
 import xyz.limo060719.goclaw.data.remote.GoClawApi
@@ -48,13 +49,13 @@ class BackendSkillsViewModel @Inject constructor(
         viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(message = "尚未配置后端地址 / API 密钥。")
+                _state.value = _state.value.copy(message = context.getString(R.string.err_not_configured))
                 return@launch
             }
             _state.value = _state.value.copy(loading = true)
             api.listBackendSkills(s)
                 .onSuccess { _state.value = _state.value.copy(skills = it, loading = false) }
-                .onFailure { _state.value = _state.value.copy(loading = false, message = "加载失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(loading = false, message = context.getString(R.string.err_load_failed, it.message ?: "")) }
         }
     }
 
@@ -62,7 +63,7 @@ class BackendSkillsViewModel @Inject constructor(
         viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(message = "尚未配置后端")
+                _state.value = _state.value.copy(message = context.getString(R.string.err_not_configured_short))
                 return@launch
             }
             _state.value = _state.value.copy(uploading = true)
@@ -70,7 +71,7 @@ class BackendSkillsViewModel @Inject constructor(
                 runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
             }
             if (raw == null) {
-                _state.value = _state.value.copy(uploading = false, message = "无法读取文件")
+                _state.value = _state.value.copy(uploading = false, message = context.getString(R.string.err_file_read))
                 return@launch
             }
             // Backend requires SKILL.md at the zip root; repackage each SKILL.md folder so it complies.
@@ -80,7 +81,7 @@ class BackendSkillsViewModel @Inject constructor(
             if (packages.isEmpty()) {
                 _state.value = _state.value.copy(
                     uploading = false,
-                    message = "未找到 SKILL.md（请选择含 SKILL.md 的技能包 .zip）",
+                    message = context.getString(R.string.backend_skills_no_skillmd),
                 )
                 return@launch
             }
@@ -93,8 +94,8 @@ class BackendSkillsViewModel @Inject constructor(
             }
             _state.value = _state.value.copy(
                 uploading = false,
-                message = if (ok == packages.size) "已上传 $ok 个技能"
-                else "上传 $ok/${packages.size} 个；失败：$lastErr",
+                message = if (ok == packages.size) context.getString(R.string.backend_skills_uploaded_fmt, ok)
+                else context.getString(R.string.backend_skills_upload_partial_fmt, ok, packages.size, lastErr ?: ""),
             )
             refresh()
         }
@@ -145,7 +146,7 @@ class BackendSkillsViewModel @Inject constructor(
                         skills = _state.value.skills.map { if (it.id == id) it.copy(enabled = target) else it },
                     )
                 }
-                .onFailure { _state.value = _state.value.copy(busyId = null, message = "操作失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(busyId = null, message = context.getString(R.string.err_op_failed_fmt, it.message ?: "")) }
         }
     }
 
@@ -158,10 +159,10 @@ class BackendSkillsViewModel @Inject constructor(
                     _state.value = _state.value.copy(
                         busyId = null,
                         skills = _state.value.skills.filterNot { it.id == id },
-                        message = "已删除",
+                        message = context.getString(R.string.common_deleted),
                     )
                 }
-                .onFailure { _state.value = _state.value.copy(busyId = null, message = "删除失败：${it.message}") }
+                .onFailure { _state.value = _state.value.copy(busyId = null, message = context.getString(R.string.err_delete_failed_fmt, it.message ?: "")) }
         }
     }
 

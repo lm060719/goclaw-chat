@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.activity.compose)
+    implementation(libs.androidx.core.splashscreen)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

@@ -1,8 +1,10 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.data.remote.GoClawWsClient
 import xyz.limo060719.goclaw.data.remote.LogLine
@@ -26,6 +29,7 @@ data class LogsUiState(
 
 @HiltViewModel
 class LogsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsStore: SettingsStore,
     private val ws: GoClawWsClient,
 ) : ViewModel() {
@@ -53,12 +57,12 @@ class LogsViewModel @Inject constructor(
         job = viewModelScope.launch {
             val s = settingsStore.current()
             if (!s.isConfigured) {
-                _state.value = _state.value.copy(message = "尚未配置后端地址 / API 密钥。")
+                _state.value = _state.value.copy(message = context.getString(R.string.err_not_configured))
                 return@launch
             }
             _state.value = _state.value.copy(streaming = true)
             ws.tailLogs(s, _state.value.level.ifBlank { null })
-                .catch { _state.value = _state.value.copy(message = "日志流中断：${it.message}") }
+                .catch { _state.value = _state.value.copy(message = context.getString(R.string.logs_stream_broken_fmt, it.message ?: "")) }
                 .onCompletion { _state.value = _state.value.copy(streaming = false) }
                 .collect { line ->
                     _state.value = _state.value.copy(

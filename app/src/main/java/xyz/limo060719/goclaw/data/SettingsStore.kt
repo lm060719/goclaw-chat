@@ -35,6 +35,8 @@ data class GoClawSettings(
     val assistantAvatar: String = "",  // local file path
     /** Use the backend `/v1/tts/synthesize` for replies instead of on-device TTS. */
     val ttsBackend: Boolean = false,
+    /** Show a connection-status dot (green/red) in the chat top bar. */
+    val showConnectionStatus: Boolean = false,
 ) {
     val isConfigured: Boolean get() = baseUrl.isNotBlank() && apiKey.isNotBlank()
 }
@@ -58,6 +60,7 @@ class SettingsStore @Inject constructor(
         val SELF_AVATAR = stringPreferencesKey("self_avatar")
         val ASSISTANT_AVATAR = stringPreferencesKey("assistant_avatar")
         val TTS_BACKEND = booleanPreferencesKey("tts_backend")
+        val SHOW_CONNECTION_STATUS = booleanPreferencesKey("show_connection_status")
     }
 
     val settings: Flow<GoClawSettings> = context.dataStore.data.map { p ->
@@ -76,6 +79,7 @@ class SettingsStore @Inject constructor(
             selfAvatar = p[Keys.SELF_AVATAR].orEmpty(),
             assistantAvatar = p[Keys.ASSISTANT_AVATAR].orEmpty(),
             ttsBackend = p[Keys.TTS_BACKEND] ?: false,
+            showConnectionStatus = p[Keys.SHOW_CONNECTION_STATUS] ?: false,
         )
     }
 
@@ -101,6 +105,10 @@ class SettingsStore @Inject constructor(
 
     suspend fun updateTtsBackend(enabled: Boolean) {
         context.dataStore.edit { p -> p[Keys.TTS_BACKEND] = enabled }
+    }
+
+    suspend fun updateShowConnectionStatus(enabled: Boolean) {
+        context.dataStore.edit { p -> p[Keys.SHOW_CONNECTION_STATUS] = enabled }
     }
 
     suspend fun updateWechatProfile(

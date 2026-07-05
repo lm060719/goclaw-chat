@@ -15,11 +15,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.DevicePairing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,15 +50,15 @@ fun DevicePairingScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("设备配对") },
+                title = { Text(stringResource(R.string.extras_pairing_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = vm::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
             )
@@ -65,7 +67,7 @@ fun DevicePairingScreen(
             ExtendedFloatingActionButton(
                 onClick = { showRequest = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("请求配对码") },
+                text = { Text(stringResource(R.string.pairing_request_code)) },
             )
         },
     ) { padding ->
@@ -86,10 +88,10 @@ fun DevicePairingScreen(
                             modifier = Modifier.size(40.dp),
                         )
                         Spacer(Modifier.height(12.dp))
-                        Text("暂无配对", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.pairing_empty), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "点击「请求配对码」为某个渠道生成配对码，批准后即可绑定设备。",
+                            stringResource(R.string.pairing_empty_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -151,8 +153,8 @@ private fun PairingCard(
             }
             item.chatId.takeIf { it.isNotBlank() }?.let { KeyValue("Chat ID", it) }
             item.senderId.takeIf { it.isNotBlank() }?.let { KeyValue("Sender", it) }
-            item.approvedBy.takeIf { it.isNotBlank() }?.let { KeyValue("批准人", it) }
-            item.createdAt.takeIf { it.isNotBlank() }?.let { KeyValue("创建于", it) }
+            item.approvedBy.takeIf { it.isNotBlank() }?.let { KeyValue(stringResource(R.string.pairing_approved_by), it) }
+            item.createdAt.takeIf { it.isNotBlank() }?.let { KeyValue(stringResource(R.string.pairing_created_at), it) }
 
             Spacer(Modifier.height(12.dp))
             Row(
@@ -168,18 +170,18 @@ private fun PairingCard(
                     OutlinedButton(onClick = onRevoke, enabled = enabled) {
                         Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("撤销")
+                        Text(stringResource(R.string.common_revoke))
                     }
                 } else {
                     OutlinedButton(onClick = onDeny, enabled = enabled) {
                         Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("拒绝")
+                        Text(stringResource(R.string.common_reject))
                     }
                     Button(onClick = onApprove, enabled = enabled) {
                         Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("批准")
+                        Text(stringResource(R.string.common_approve))
                     }
                 }
             }
@@ -189,7 +191,7 @@ private fun PairingCard(
 
 @Composable
 private fun StatusChip(approved: Boolean) {
-    val label = if (approved) "已批准" else "待处理"
+    val label = if (approved) stringResource(R.string.pairing_status_approved) else stringResource(R.string.pairing_status_pending)
     val color = if (approved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
     Surface(color = color.copy(alpha = 0.15f), shape = MaterialTheme.shapes.small) {
         Text(
@@ -224,14 +226,14 @@ private fun RequestPairingDialog(
     var chatId by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = { if (!requesting) onDismiss() },
-        title = { Text("请求配对码") },
+        title = { Text(stringResource(R.string.pairing_request_code)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = channel,
                     onValueChange = { channel = it },
-                    label = { Text("渠道 (channel)") },
-                    placeholder = { Text("如 telegram") },
+                    label = { Text(stringResource(R.string.pairing_channel)) },
+                    placeholder = { Text(stringResource(R.string.pairing_channel_hint)) },
                     singleLine = true,
                     enabled = !requesting,
                     modifier = Modifier.fillMaxWidth(),
@@ -255,12 +257,12 @@ private fun RequestPairingDialog(
                 if (requesting) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("请求")
+                    Text(stringResource(R.string.pairing_request))
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !requesting) { Text("取消") }
+            TextButton(onClick = onDismiss, enabled = !requesting) { Text(stringResource(R.string.common_cancel)) }
         },
     )
 }
@@ -269,7 +271,7 @@ private fun RequestPairingDialog(
 private fun CodeResultDialog(code: String, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("配对码") },
+        title = { Text(stringResource(R.string.pairing_code_title)) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -279,13 +281,13 @@ private fun CodeResultDialog(code: String, onDismiss: () -> Unit) {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "在目标设备/渠道输入此配对码以完成绑定。",
+                    stringResource(R.string.pairing_code_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
             }
         },
-        confirmButton = { Button(onClick = onDismiss) { Text("完成") } },
+        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.common_done)) } },
     )
 }

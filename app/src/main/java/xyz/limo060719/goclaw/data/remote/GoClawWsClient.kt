@@ -22,6 +22,9 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.remote.dto.AgentInfo
 import javax.inject.Inject
@@ -145,6 +148,7 @@ sealed interface WsChatEvent {
  * socket open), exactly like the dashboard and the Telegram channel.
  */
 class GoClawWsClient @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val http: GoClawHttp,
 ) {
     fun chat(
@@ -208,7 +212,7 @@ class GoClawWsClient @Inject constructor(
                             }
                             webSocket.send(send.toString())
                         } else {
-                            trySend(WsChatEvent.Failed(IllegalStateException(errorMessage(obj) ?: "连接失败")))
+                            trySend(WsChatEvent.Failed(IllegalStateException(errorMessage(obj) ?: context.getString(R.string.err_connect_failed))))
                             webSocket.close(1000, null)
                         }
                     }
@@ -222,7 +226,7 @@ class GoClawWsClient @Inject constructor(
                             val media = parseMedia(payload)
                             trySend(WsChatEvent.Done(content, extractSessionId(payload, obj), thinking, media))
                         } else {
-                            trySend(WsChatEvent.Failed(IllegalStateException(errorMessage(obj) ?: "请求失败")))
+                            trySend(WsChatEvent.Failed(IllegalStateException(errorMessage(obj) ?: context.getString(R.string.err_request_failed))))
                         }
                         webSocket.close(1000, null)
                     }
@@ -337,7 +341,7 @@ class GoClawWsClient @Inject constructor(
                                         }.toString()
                                     )
                                 } else {
-                                    close(IllegalStateException(errorMessage(obj) ?: "连接失败"))
+                                    close(IllegalStateException(errorMessage(obj) ?: context.getString(R.string.err_connect_failed)))
                                 }
                             }
                         }

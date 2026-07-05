@@ -1,3 +1,388 @@
 <resources>
     <string name="app_name">GoClaw Chat</string>
+
+    <!-- Common -->
+    <string name="common_back">Back</string>
+    <string name="common_save">Save</string>
+    <string name="common_saved">Saved</string>
+    <string name="common_copied">Copied</string>
+    <string name="common_menu">Menu</string>
+    <string name="common_close">Close</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_copy">Copy</string>
+    <string name="common_share">Share</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_confirm">Confirm</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_remove">Remove</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_ai_provider">AI Provider</string>
+    <string name="settings_ai_provider_desc">Backend URL, API key, user ID, agent, model</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_follow_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_zh">中文</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_wechat_ui">WeChat-style UI</string>
+    <string name="settings_wechat_ui_desc">Switch the chat to a WeChat-like style; open the drawer from the top-right \"···\".</string>
+    <string name="settings_backend_tts">Use backend TTS (high quality)</string>
+    <string name="settings_backend_tts_desc">Read replies aloud via backend speech synthesis (requires a TTS provider on the backend); falls back to on-device TTS on failure.</string>
+    <string name="settings_conn_status">Show connection status</string>
+    <string name="settings_conn_status_desc">Show a dot in the top-left of the chat screen: green when connected, red when disconnected.</string>
+    <string name="settings_wechat_profile">WeChat style · avatars &amp; names</string>
+    <string name="settings_avatar_assistant">Assistant avatar</string>
+    <string name="settings_avatar_self">My avatar</string>
+    <string name="settings_name_assistant">Assistant name (top title)</string>
+    <string name="settings_name_self">My name</string>
+    <string name="settings_save_names">Save names</string>
+
+    <!-- Chat -->
+    <string name="chat_toggle_tts">Toggle voice playback</string>
+    <string name="chat_new_conversation">New chat</string>
+    <string name="chat_share_to">Share to</string>
+    <string name="chat_untitled">New chat</string>
+    <string name="chat_voice_label">🎤 Voice</string>
+    <string name="ai_badge">AI Assistant</string>
+
+    <!-- Input bar -->
+    <string name="chat_add_image">Add image</string>
+    <string name="chat_add_file">Add file</string>
+    <string name="chat_hold_to_talk">Hold to send voice</string>
+    <string name="chat_input_continue">Keep typing…</string>
+    <string name="chat_input_hint">Message</string>
+    <string name="chat_stop">Stop</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_recording">Recording…</string>
+    <string name="chat_release_to_send">Release to send</string>
+
+    <!-- Drawer -->
+    <string name="drawer_search">Search chats</string>
+    <string name="drawer_history">History</string>
+    <string name="drawer_history_empty">No chats yet</string>
+    <string name="drawer_history_no_match">No matching chats</string>
+    <string name="drawer_delete_conversation">Delete chat</string>
+    <string name="drawer_extras">Extra features</string>
+
+    <!-- Empty state -->
+    <string name="empty_sugg_copywriting_title">Write copy</string>
+    <string name="empty_sugg_copywriting_desc">Create copy in various styles</string>
+    <string name="empty_sugg_copywriting_prompt">Help me write some copy: </string>
+    <string name="empty_sugg_summary_title">Summarize</string>
+    <string name="empty_sugg_summary_desc">Extract key points quickly</string>
+    <string name="empty_sugg_summary_prompt">Help me summarize the following: </string>
+    <string name="empty_sugg_code_title">Generate code</string>
+    <string name="empty_sugg_code_desc">Generate a snippet or full function</string>
+    <string name="empty_sugg_code_prompt">Help me write some code. The requirement is: </string>
+    <string name="empty_sugg_brainstorm_title">Brainstorm</string>
+    <string name="empty_sugg_brainstorm_desc">Spark ideas, broaden thinking</string>
+    <string name="empty_sugg_brainstorm_prompt">Let\'s brainstorm together. The topic is: </string>
+    <string name="empty_greeting">Hi, what would you like to talk about today?</string>
+    <string name="empty_subtitle">I\'m GoClaw, your AI assistant, here to help anytime.</string>
+
+    <!-- Message bubble -->
+    <string name="msg_multiselect">Select</string>
+    <string name="msg_thinking_active">Thinking…</string>
+    <string name="msg_thinking">Reasoning</string>
+    <string name="msg_thinking_collapse">Collapse reasoning</string>
+    <string name="msg_thinking_expand">Expand reasoning</string>
+
+    <!-- Tool card -->
+    <string name="tool_prefix">Tool · %1$s</string>
+    <string name="tool_toggle">Expand/collapse</string>
+    <string name="tool_args">Arguments</string>
+    <string name="tool_result">Result</string>
+    <string name="tool_output_files">Output files</string>
+
+    <!-- Markdown / files -->
+    <string name="md_copy_code">Copy code</string>
+    <string name="file_download">Download</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_rename_title">Rename chat</string>
+    <string name="dialog_delete_title">Delete messages</string>
+    <string name="dialog_delete_msg">Delete the %1$d selected message(s)? This cannot be undone.</string>
+    <string name="dialog_msg_detail">Message details</string>
+    <string name="dialog_selected_count">%1$d selected</string>
+
+    <!-- Chat errors / system messages -->
+    <string name="err_audio_unplayable">Audio cannot be played</string>
+    <string name="err_backend_tts">Backend TTS unavailable (%1$s); switched to on-device reading</string>
+    <string name="err_image_load">Cannot load image</string>
+    <string name="err_not_configured">Backend URL / API key not configured yet.</string>
+    <string name="msg_saved_to">Saved to: %1$s</string>
+    <string name="err_save_failed">Save failed</string>
+    <string name="err_download_failed">Download failed: %1$s</string>
+    <string name="err_file_unreachable">File unreachable</string>
+    <string name="err_attach_upload">Attachment upload failed</string>
+    <string name="msg_attach_prompt">Please review and handle the attachment I sent.</string>
+    <string name="err_record_start">Cannot start recording; check the microphone permission</string>
+    <string name="err_record_too_short">Recording too short</string>
+    <string name="err_voice_upload">Voice upload failed</string>
+    <string name="msg_voice_prompt">Please transcribe this voice message and reply.</string>
+    <string name="tool_copy_label">[Tool %1$s]\n%2$s</string>
+
+    <!-- Shared (admin) -->
+    <string name="common_refresh">Refresh</string>
+    <string name="common_done">Done</string>
+    <string name="common_approve">Approve</string>
+    <string name="common_reject">Reject</string>
+    <string name="common_approved">Approved</string>
+    <string name="common_rejected">Rejected</string>
+    <string name="common_revoked">Revoked</string>
+    <string name="common_revoke">Revoke</string>
+    <string name="common_deleted">Deleted</string>
+    <string name="err_load_failed">Load failed: %1$s</string>
+    <string name="err_op_failed">Operation failed</string>
+    <string name="err_op_failed_fmt">Operation failed: %1$s</string>
+    <string name="err_delete_failed_fmt">Delete failed: %1$s</string>
+    <string name="err_not_configured_short">Backend not configured</string>
+
+    <!-- AI provider screen -->
+    <string name="provider_backend_url">Backend URL</string>
+    <string name="provider_api_key">API key</string>
+    <string name="provider_user_id">User ID</string>
+    <string name="provider_agent_key">Agent ID</string>
+    <string name="provider_model_required">Model (required)</string>
+    <string name="provider_model_required_hint">A model must be set, or the connection won\'t work</string>
+    <string name="provider_test_connection">Test connection</string>
+    <string name="provider_online">Online</string>
+    <string name="provider_offline">Offline</string>
+    <string name="provider_load_agents">Load agents from backend</string>
+    <string name="provider_tap_select">Tap to select:</string>
+    <string name="provider_edit_provider">Edit provider</string>
+    <string name="provider_model_config_title">Model config (change the agent\'s server-side model)</string>
+    <string name="provider_model_config_desc">Load the provider\'s real model list and apply it to the agent selected above.</string>
+    <string name="provider_load_providers">Load providers</string>
+    <string name="provider_providers_label">Providers:</string>
+    <string name="provider_loading_models">Loading models…</string>
+    <string name="provider_models_label">Models:</string>
+    <string name="provider_apply_model">Apply model to current agent</string>
+    <string name="provider_saved_agents">Saved agents (tap to switch)</string>
+    <string name="provider_saved_agent_fmt">Agent saved: %1$s</string>
+    <string name="provider_need_url_key">Enter the backend URL and API key first</string>
+    <string name="provider_no_agents">No agents found</string>
+    <string name="provider_connected_fmt">Connected ✓ gateway %1$s</string>
+    <string name="provider_connect_failed">Connection failed; check the URL / key / network</string>
+    <string name="provider_no_providers">No providers found</string>
+    <string name="provider_load_providers_failed_fmt">Failed to load providers: %1$s</string>
+    <string name="provider_no_models">No models available for this provider</string>
+    <string name="provider_load_models_failed_fmt">Failed to load models: %1$s</string>
+    <string name="provider_select_agent_first">Load and select an agent above first</string>
+    <string name="provider_select_model_first">Select a model first</string>
+    <string name="provider_model_updated_fmt">Updated agent model to %1$s</string>
+    <string name="provider_update_failed">Update failed (may require admin permission)</string>
+
+    <!-- Extra features hub -->
+    <string name="extras_title">Extra features</string>
+    <string name="extras_skills_title">Skills (local injection)</string>
+    <string name="extras_skills_desc">Import skills and inject them as instructions into the chat</string>
+    <string name="extras_backend_skills_title">Backend skills (executable)</string>
+    <string name="extras_backend_skills_desc">Upload a .zip to the backend to run scripts, loaded on demand</string>
+    <string name="extras_approvals_title">Approvals</string>
+    <string name="extras_approvals_desc">Approve shell commands the agent has pending</string>
+    <string name="extras_sessions_title">Session management</string>
+    <string name="extras_sessions_desc">Browse server sessions; compact long history, clear or delete</string>
+    <string name="extras_usage_title">Usage &amp; cost</string>
+    <string name="extras_usage_desc">View token consumption and cost stats</string>
+    <string name="extras_traces_title">Traces</string>
+    <string name="extras_traces_desc">View the LLM call traces of agent runs</string>
+    <string name="extras_pairing_title">Device pairing</string>
+    <string name="extras_pairing_desc">Generate pairing codes; approve or revoke cross-channel device bindings</string>
+    <string name="extras_logs_title">Live logs</string>
+    <string name="extras_logs_desc">View the backend log stream live, filterable by level</string>
+    <string name="extras_heartbeat_title">Heartbeat</string>
+    <string name="extras_heartbeat_desc">Configure scheduled heartbeats, edit HEARTBEAT.md, view run logs</string>
+    <string name="extras_api_keys_title">API keys</string>
+    <string name="extras_api_keys_desc">Create, view and revoke backend API keys</string>
+
+    <!-- Shared extra -->
+    <string name="common_delete_failed">Delete failed</string>
+    <string name="err_file_read">Cannot read file</string>
+    <string name="err_request_failed">Request failed</string>
+
+    <!-- Approvals -->
+    <string name="approval_empty">No commands awaiting approval</string>
+    <string name="approval_empty_desc">Shell commands the agent requests will appear here.</string>
+    <string name="approval_no_command">(no command)</string>
+    <string name="approval_cwd_fmt">Dir: %1$s</string>
+
+    <!-- Sessions -->
+    <string name="sessions_empty">No server sessions</string>
+    <string name="sessions_msg_count_fmt">%1$d messages</string>
+    <string name="sessions_compact">Compact</string>
+    <string name="sessions_clear">Clear</string>
+    <string name="sessions_compacted">History compacted</string>
+    <string name="sessions_cleared">History cleared</string>
+    <string name="sessions_deleted">Session deleted</string>
+
+    <!-- Usage -->
+    <string name="usage_period_fmt">Period: %1$s</string>
+    <string name="usage_total_tokens">Total tokens</string>
+    <string name="usage_input_tokens">Input tokens</string>
+    <string name="usage_output_tokens">Output tokens</string>
+    <string name="usage_requests">Requests</string>
+    <string name="usage_cost_usd">Cost (USD)</string>
+    <string name="usage_llm_calls">LLM calls</string>
+    <string name="usage_tool_calls">Tool calls</string>
+    <string name="usage_unique_users">Unique users</string>
+    <string name="usage_errors">Errors</string>
+    <string name="usage_empty">No usage data</string>
+    <string name="usage_raw_title">Raw response (debug · field alignment)</string>
+    <string name="usage_raw_desc">Zeros usually mean different field names. Send this to the developer for exact alignment:</string>
+
+    <!-- Traces -->
+    <string name="traces_empty">No traces</string>
+    <string name="traces_detail_title">Trace details</string>
+    <string name="traces_view_raw">Raw JSON</string>
+    <string name="traces_view_visual">Visual</string>
+    <string name="traces_no_steps">No timeline steps</string>
+
+    <!-- Backend skills -->
+    <string name="backend_skills_title">Backend skills</string>
+    <string name="backend_skills_uploading">Uploading…</string>
+    <string name="backend_skills_upload">Upload .zip</string>
+    <string name="backend_skills_empty">No backend skills</string>
+    <string name="backend_skills_empty_desc">Upload a SKILL.md-format .zip (may include scripts/resources), run by the backend.</string>
+    <string name="backend_skills_no_skillmd">SKILL.md not found (pick a skill .zip that contains SKILL.md)</string>
+    <string name="backend_skills_uploaded_fmt">Uploaded %1$d skill(s)</string>
+    <string name="backend_skills_upload_partial_fmt">Uploaded %1$d/%2$d; failed: %3$s</string>
+
+    <!-- Device pairing -->
+    <string name="pairing_request_code">Request pairing code</string>
+    <string name="pairing_empty">No pairings</string>
+    <string name="pairing_empty_desc">Tap \"Request pairing code\" to generate a code for a channel; bind the device once approved.</string>
+    <string name="pairing_approved_by">Approved by</string>
+    <string name="pairing_created_at">Created at</string>
+    <string name="pairing_status_approved">Approved</string>
+    <string name="pairing_status_pending">Pending</string>
+    <string name="pairing_channel">Channel (channel)</string>
+    <string name="pairing_channel_hint">e.g. telegram</string>
+    <string name="pairing_request">Request</string>
+    <string name="pairing_code_title">Pairing code</string>
+    <string name="pairing_code_desc">Enter this code on the target device/channel to complete binding.</string>
+    <string name="pairing_need_channel_chat">Enter the channel and Chat ID.</string>
+    <string name="pairing_no_code_approve">This pairing has no code and cannot be approved.</string>
+    <string name="pairing_no_code_deny">This pairing has no code and cannot be denied.</string>
+    <string name="pairing_no_channel_revoke">This pairing lacks channel / senderId and cannot be revoked.</string>
+    <string name="pairing_requested">Approved</string>
+    <string name="pairing_denied">Denied</string>
+
+    <!-- Logs -->
+    <string name="logs_title">Live logs</string>
+    <string name="logs_level_all">All</string>
+    <string name="logs_copy_all">Copy all</string>
+    <string name="logs_clear">Clear</string>
+    <string name="logs_start">Start</string>
+    <string name="logs_stop">Stop</string>
+    <string name="logs_waiting">Waiting for logs…</string>
+    <string name="logs_tap_start">Tap \"Start\" to stream live logs</string>
+    <string name="logs_stream_broken_fmt">Log stream interrupted: %1$s</string>
+
+    <!-- Heartbeat -->
+    <string name="heartbeat_title">Heartbeat</string>
+    <string name="heartbeat_refresh_agents">Refresh agents</string>
+    <string name="heartbeat_select_agent_prompt">Select an agent to view its heartbeat config.</string>
+    <string name="heartbeat_select_agent">Select agent</string>
+    <string name="heartbeat_select_provider">Select provider</string>
+    <string name="heartbeat_provider">Provider</string>
+    <string name="heartbeat_no_providers">No providers</string>
+    <string name="heartbeat_select_model">Select model</string>
+    <string name="heartbeat_select_provider_first">Select a provider first</string>
+    <string name="heartbeat_model">Model</string>
+    <string name="heartbeat_no_models">No models</string>
+    <string name="heartbeat_config">Config</string>
+    <string name="heartbeat_enable">Enable heartbeat</string>
+    <string name="heartbeat_interval">Interval (minutes, min 5)</string>
+    <string name="heartbeat_prompt">Prompt</string>
+    <string name="heartbeat_test_now">Test now</string>
+    <string name="heartbeat_save_config">Save config</string>
+    <string name="heartbeat_context_content">Context file content</string>
+    <string name="heartbeat_reload">Reload</string>
+    <string name="heartbeat_logs">Run logs</string>
+    <string name="heartbeat_no_logs">No logs</string>
+    <string name="heartbeat_targets">Delivery targets</string>
+    <string name="heartbeat_no_targets">No delivery targets</string>
+    <string name="heartbeat_select_agent_msg">Select an agent first.</string>
+    <string name="heartbeat_interval_min">Minimum interval is 5 minutes.</string>
+    <string name="heartbeat_config_saved">Config saved</string>
+    <string name="heartbeat_enabled">Enabled</string>
+    <string name="heartbeat_disabled">Disabled</string>
+    <string name="heartbeat_triggered">Heartbeat triggered once</string>
+    <string name="heartbeat_trigger_failed">Trigger failed</string>
+    <string name="heartbeat_trigger_failed_fmt">Trigger failed: %1$s</string>
+    <string name="heartbeat_checklist_saved">HEARTBEAT.md saved</string>
+    <string name="heartbeat_load_agents_failed_fmt">Failed to load agents: %1$s</string>
+    <string name="heartbeat_load_config_failed_fmt">Failed to read config: %1$s</string>
+    <string name="heartbeat_save_failed">Save failed</string>
+    <string name="heartbeat_save_failed_fmt">Save failed: %1$s</string>
+    <string name="heartbeat_read_checklist_failed_fmt">Failed to read HEARTBEAT.md: %1$s</string>
+    <string name="heartbeat_read_logs_failed_fmt">Failed to read logs: %1$s</string>
+    <string name="heartbeat_read_targets_failed_fmt">Failed to read delivery targets: %1$s</string>
+
+    <!-- API keys -->
+    <string name="apikeys_save_now_title">Save this key now</string>
+    <string name="apikeys_save_now_note">Saved locally on this device; you can view/copy it again later via \"View key\" in the list.</string>
+    <string name="apikeys_key_title">Key</string>
+    <string name="apikeys_key_note">This key is stored on this device; keep it safe.</string>
+    <string name="apikeys_create_key">Create key</string>
+    <string name="apikeys_empty">No API keys</string>
+    <string name="apikeys_expires_fmt">Expires: %1$s</string>
+    <string name="apikeys_created_fmt">Created: %1$s</string>
+    <string name="apikeys_stored_locally">🔒 Key stored on this device</string>
+    <string name="apikeys_view_key">View key</string>
+    <string name="apikeys_create_title">Create API key</string>
+    <string name="apikeys_name">Name</string>
+    <string name="apikeys_scopes">Scopes (multi-select)</string>
+    <string name="apikeys_validity">Validity</string>
+    <string name="apikeys_custom_days">Custom days</string>
+    <string name="apikeys_create">Create</string>
+    <string name="apikeys_need_name">Enter a name.</string>
+    <string name="apikeys_need_scope">Select at least one scope.</string>
+    <string name="apikeys_create_failed">Create failed</string>
+    <string name="apikeys_create_failed_fmt">Create failed: %1$s</string>
+    <string name="apikeys_revoke_failed_fmt">Revoke failed: %1$s</string>
+    <string name="apikeys_scope_admin">Full admin permission</string>
+    <string name="apikeys_scope_read">Read-only permission</string>
+    <string name="apikeys_scope_write">Read-write permission</string>
+    <string name="apikeys_scope_approvals">Manage execution approvals</string>
+    <string name="apikeys_scope_pairing">Manage device pairing</string>
+    <string name="apikeys_scope_provision">Provision new tenants</string>
+    <string name="apikeys_days_fmt">%1$d days</string>
+    <string name="apikeys_custom">Custom</string>
+
+    <!-- Skills (local) -->
+    <string name="skills_title">Skills</string>
+    <string name="skills_import">Import</string>
+    <string name="skills_empty">No skills yet.\nImport SKILL.md (with frontmatter), .json, .md/.txt,\nor a .zip containing SKILL.md (e.g. GitHub Download ZIP).</string>
+    <string name="skills_char_count_fmt">%1$d chars</string>
+    <string name="skills_import_none">No importable skills found</string>
+    <string name="skills_imported_one_fmt">Imported: %1$s</string>
+    <string name="skills_imported_many_fmt">Imported %1$d skills: %2$s</string>
+    <string name="skills_import_failed_fmt">Import failed: %1$s</string>
+
+    <!-- Chat repository errors -->
+    <string name="err_tls">Connection interrupted (TLS error); the server connection was dropped, please retry.</string>
+    <string name="err_not_configured_or_empty">Not configured or empty text</string>
+
+    <!-- Speech recognition errors -->
+    <string name="err_speech_audio">Recording error</string>
+    <string name="err_speech_client">Client error</string>
+    <string name="err_speech_permission">Microphone permission missing</string>
+    <string name="err_speech_network">Network error</string>
+    <string name="err_speech_network_timeout">Network timeout</string>
+    <string name="err_speech_no_match">No speech recognized</string>
+    <string name="err_speech_busy">Recognizer busy</string>
+    <string name="err_speech_timeout">No speech input detected</string>
+    <string name="err_speech_generic_fmt">Speech recognition error (%1$d)</string>
+
+    <!-- Data-layer errors -->
+    <string name="err_skill_no_skillmd">No importable skills found (missing SKILL.md)</string>
+    <string name="err_empty_response">Empty response</string>
+    <string name="err_empty_file">Empty file</string>
+    <string name="err_non_audio_fmt">Non-audio response (%1$s): %2$s</string>
+    <string name="err_connect_failed">Connection failed</string>
 </resources>

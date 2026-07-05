@@ -64,14 +64,14 @@ class SkillRepository @Inject constructor(
         runCatching {
             val name = queryDisplayName(uri)
             val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                ?: error("无法读取文件")
+                ?: error(context.getString(xyz.limo060719.goclaw.R.string.err_file_read))
 
             val imported = if (name.endsWith(".zip", true) || isZip(bytes)) {
                 importZip(bytes)
             } else {
                 listOf(parseTextSkill(name, bytes.toString(Charsets.UTF_8)))
             }
-            if (imported.isEmpty()) error("未找到可导入的技能（缺少 SKILL.md）")
+            if (imported.isEmpty()) error(context.getString(xyz.limo060719.goclaw.R.string.err_skill_no_skillmd))
             imported.forEach { add(it) }
             imported
         }

@@ -12,11 +12,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.limo060719.goclaw.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,15 +34,15 @@ fun UsageScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("用量 & 费用") },
+                title = { Text(stringResource(R.string.extras_usage_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = vm::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
             )
@@ -56,27 +58,27 @@ fun UsageScreen(
                 ) {
                     if (u != null) {
                         if (u.period.isNotBlank()) {
-                            Text("周期：${u.period}", style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(R.string.usage_period_fmt, u.period), style = MaterialTheme.typography.labelLarge)
                         }
-                        StatCard("总 Token", u.totalTokens.toString())
-                        StatCard("输入 Token", u.promptTokens.toString())
-                        StatCard("输出 Token", u.completionTokens.toString())
-                        StatCard("请求数", u.requests.toString())
-                        StatCard("费用 (USD)", "$" + String.format("%.4f", u.costUsd))
-                        if (u.llmCalls > 0) StatCard("LLM 调用", u.llmCalls.toString())
-                        if (u.toolCalls > 0) StatCard("工具调用", u.toolCalls.toString())
-                        if (u.uniqueUsers > 0) StatCard("独立用户", u.uniqueUsers.toString())
-                        if (u.errors > 0) StatCard("错误数", u.errors.toString())
+                        StatCard(stringResource(R.string.usage_total_tokens), u.totalTokens.toString())
+                        StatCard(stringResource(R.string.usage_input_tokens), u.promptTokens.toString())
+                        StatCard(stringResource(R.string.usage_output_tokens), u.completionTokens.toString())
+                        StatCard(stringResource(R.string.usage_requests), u.requests.toString())
+                        StatCard(stringResource(R.string.usage_cost_usd), "$" + String.format("%.4f", u.costUsd))
+                        if (u.llmCalls > 0) StatCard(stringResource(R.string.usage_llm_calls), u.llmCalls.toString())
+                        if (u.toolCalls > 0) StatCard(stringResource(R.string.usage_tool_calls), u.toolCalls.toString())
+                        if (u.uniqueUsers > 0) StatCard(stringResource(R.string.usage_unique_users), u.uniqueUsers.toString())
+                        if (u.errors > 0) StatCard(stringResource(R.string.usage_errors), u.errors.toString())
                     } else {
-                        Text("暂无用量数据", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.usage_empty), style = MaterialTheme.typography.bodyMedium)
                     }
 
                     val zeros = u == null || (u.totalTokens == 0L && u.costUsd == 0.0)
                     if (zeros && state.raw != null) {
                         HorizontalDivider()
-                        Text("原始返回（调试 · 字段对齐用）", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.usage_raw_title), style = MaterialTheme.typography.labelLarge)
                         Text(
-                            "数值为 0 多半是字段名不同。把下面这段发给开发者即可精确对齐：",
+                            stringResource(R.string.usage_raw_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

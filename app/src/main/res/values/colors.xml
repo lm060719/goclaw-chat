@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与浅色主题的 background(Mono.Paper = 0xFFFAFAFA)一致,使启动画面到内容首帧零切换。 -->
+    <color name="splash_bg">#FFFAFAFA</color>
+</resources>

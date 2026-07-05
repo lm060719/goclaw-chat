@@ -13,6 +13,9 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.remote.dto.AgentInfo
 import xyz.limo060719.goclaw.data.remote.dto.MediaUpload
@@ -52,6 +55,28 @@ class TraceInfo(
     val createdAt: String,
 )
 
+/** The visual kind of a single trace step, used by the UI for icon/color. */
+enum class TraceStepKind { USER, ASSISTANT, SYSTEM, THINKING, TOOL_CALL, TOOL_RESULT, LLM, EVENT, OTHER }
+
+/** One entry on the trace timeline (a message / thinking block / tool call / event). */
+class TraceStep(
+    val kind: TraceStepKind,
+    val title: String,
+    val subtitle: String,
+    val body: String,
+)
+
+/**
+ * A parsed, presentable trace detail. Field shapes vary per backend build, so parsing is
+ * deliberately tolerant: [meta] and [steps] hold whatever we could recognize, and [raw] always
+ * carries the full pretty-printed JSON as a fallback view.
+ */
+class TraceDetail(
+    val meta: List<Pair<String, String>>,
+    val steps: List<TraceStep>,
+    val raw: String,
+)
+
 /** A backend-managed (executable) skill (`/v1/skills`). */
 data class BackendSkill(
     val id: String,
@@ -61,6 +86,7 @@ data class BackendSkill(
 )
 
 class GoClawApi @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val http: GoClawHttp,
 ) {
     suspend fun agents(s: GoClawSettings): Result<List<AgentInfo>> =
@@ -85,9 +111,9 @@ class GoClawApi @Inject constructor(
             val req = with(http) { Request.Builder().url(target).goClawAuth(s).get().build() }
             http.client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) error("HTTP ${resp.code}")
-                val body = resp.body ?: error("空响应")
+                val body = resp.body ?: error(context.getString(R.string.err_empty_response))
                 val bytes = body.bytes()
-                if (bytes.isEmpty()) error("空文件")
+                if (bytes.isEmpty()) error(context.getString(R.string.err_empty_file))
                 val name = filename?.takeIf { it.isNotBlank() }
                     ?: resp.request.url.pathSegments.lastOrNull()?.takeIf { it.isNotBlank() }
                     ?: "download"
@@ -161,11 +187,9 @@ class GoClawApi @Inject constructor(
     suspend fun traces(s: GoClawSettings, limit: Int = 50): Result<List<TraceInfo>> =
         getElement(s, "/v1/traces?limit=$limit").mapCatching { parseTraces(it) }
 
-    /** Full trace detail as pretty-printed JSON (`GET /v1/traces/{id}`). */
-    suspend fun traceDetail(s: GoClawSettings, id: String): Result<String> =
-        getElement(s, "/v1/traces/$id").mapCatching {
-            Json { prettyPrint = true }.encodeToString(JsonElement.serializer(), it)
-        }
+    /** Full trace detail (`GET /v1/traces/{id}`), parsed into a presentable timeline. */
+    suspend fun traceDetail(s: GoClawSettings, id: String): Result<TraceDetail> =
+        getElement(s, "/v1/traces/$id").mapCatching { parseTraceDetail(it) }
 
     /** Performs an authenticated GET and parses the body as a JSON element. */
     private suspend fun getElement(s: GoClawSettings, path: String): Result<JsonElement> =
@@ -240,10 +264,10 @@ class GoClawApi @Inject constructor(
                 http.client.newCall(req).execute().use { resp ->
                     val ct = resp.body?.contentType()?.let { "${it.type}/${it.subtype}" }.orEmpty()
                     if (!resp.isSuccessful) error("HTTP ${resp.code}: ${resp.body?.string().orEmpty().take(160)}")
-                    val bytes = resp.body?.bytes()?.takeIf { it.isNotEmpty() } ?: error("空响应")
+                    val bytes = resp.body?.bytes()?.takeIf { it.isNotEmpty() } ?: error(context.getString(R.string.err_empty_response))
                     // Reject JSON/text bodies (error payloads sometimes returned with 200) so callers fall back.
                     if (ct.startsWith("application/json") || ct.startsWith("text/")) {
-                        error("非音频响应($ct)：${String(bytes).take(160)}")
+                        error(context.getString(R.string.err_non_audio_fmt, ct, String(bytes).take(160)))
                     }
                     bytes
                 }
@@ -314,6 +338,129 @@ class GoClawApi @Inject constructor(
                 createdAt = o.strv("created_at", "createdAt", "started_at", "startedAt", "time", "timestamp"),
             )
         }
+    }
+
+    private val prettyJson = Json { prettyPrint = true }
+
+    /** Renders any element as text: primitives inline, objects/arrays as pretty JSON. */
+    private fun JsonElement.asText(): String = when (this) {
+        is JsonPrimitive -> content
+        else -> prettyJson.encodeToString(JsonElement.serializer(), this)
+    }
+
+    /**
+     * Pulls the best textual content out of an object, trying several candidate keys. Handles the
+     * common "content is an array of {type,text} blocks" shape by concatenating the text blocks.
+     */
+    private fun JsonObject.textv(vararg keys: String): String {
+        for (k in keys) when (val v = this[k]) {
+            is JsonPrimitive -> v.content.takeIf { it.isNotBlank() && it != "null" }?.let { return it }
+            is JsonArray -> {
+                val joined = v.joinToString("\n") { blk ->
+                    when (blk) {
+                        is JsonObject -> blk.strv("text", "content", "value")
+                        is JsonPrimitive -> blk.content
+                        else -> ""
+                    }
+                }.trim()
+                if (joined.isNotBlank()) return joined
+            }
+            is JsonObject -> return v.asText()
+            else -> {}
+        }
+        return ""
+    }
+
+    private fun parseTraceDetail(el: JsonElement): TraceDetail {
+        val raw = prettyJson.encodeToString(JsonElement.serializer(), el)
+        val root = el as? JsonObject
+            ?: (el as? JsonArray)?.let { buildJsonObject { } } // steps-only array handled below
+            ?: return TraceDetail(emptyList(), emptyList(), raw)
+
+        // Metadata: only surface fields that are actually present and non-blank.
+        val meta = buildList {
+            fun add(label: String, value: String) { if (value.isNotBlank()) add(label to value) }
+            add("模型", root.strv("model", "model_id", "modelId"))
+            add("智能体", root.strv("agent", "agentName", "agent_name", "agentId", "agent_id"))
+            add("供应商", root.strv("provider", "provider_name", "providerName"))
+            add("状态", root.strv("status", "state"))
+            val inTok = root.num("prompt_tokens", "promptTokens", "input_tokens", "inputTokens").toLong()
+            val outTok = root.num("completion_tokens", "completionTokens", "output_tokens", "outputTokens").toLong()
+            var total = root.num("total_tokens", "totalTokens", "tokens").toLong()
+            if (total == 0L) total = inTok + outTok
+            if (total > 0) add("Token", if (inTok > 0 || outTok > 0) "$total ($inTok↑ / $outTok↓)" else "$total")
+            val cost = root.num("cost_usd", "costUsd", "cost", "total_cost_usd")
+            if (cost > 0) add("费用", "$" + String.format("%.4f", cost))
+            val durMs = root.num("duration_ms", "durationMs", "latency_ms", "latencyMs", "elapsed_ms").toLong()
+            if (durMs > 0) add("耗时", if (durMs >= 1000) String.format("%.2fs", durMs / 1000.0) else "${durMs}ms")
+            add("时间", root.strv("created_at", "createdAt", "started_at", "startedAt", "time", "timestamp"))
+            add("会话", root.strv("session_key", "sessionKey", "session_id", "sessionId", "session"))
+            add("ID", root.strv("id", "traceId", "trace_id"))
+            add("错误", root.strv("error", "error_message", "errorMessage", "failure"))
+        }
+
+        // Steps: the timeline lives under one of several candidate array keys.
+        val stepsArr = (el as? JsonArray) ?: root.arrayOf(
+            "steps", "spans", "events", "messages", "timeline", "trace",
+            "entries", "records", "calls", "turns", "history", "items",
+        )
+        val steps = stepsArr?.mapNotNull { it as? JsonObject }?.map { parseTraceStep(it) } ?: emptyList()
+
+        return TraceDetail(meta, steps, raw)
+    }
+
+    private fun parseTraceStep(o: JsonObject): TraceStep {
+        val type = o.strv("type", "kind", "role", "event", "event_type", "phase", "name").lowercase()
+        val toolName = o.strv("tool", "tool_name", "toolName", "function", "name")
+
+        val kind = when {
+            type.contains("user") -> TraceStepKind.USER
+            type.contains("assistant") || type.contains("output") && type.contains("message") -> TraceStepKind.ASSISTANT
+            type.contains("system") -> TraceStepKind.SYSTEM
+            type.contains("think") || type.contains("reason") -> TraceStepKind.THINKING
+            type.contains("tool") && (type.contains("result") || type.contains("response") || type.contains("output")) -> TraceStepKind.TOOL_RESULT
+            type.contains("tool") || type.contains("function") -> TraceStepKind.TOOL_CALL
+            type.contains("llm") || type.contains("model") || type.contains("completion") || type.contains("generation") -> TraceStepKind.LLM
+            type.contains("message") || type.contains("msg") -> TraceStepKind.ASSISTANT
+            type.isNotBlank() -> TraceStepKind.EVENT
+            else -> TraceStepKind.OTHER
+        }
+
+        val title = when (kind) {
+            TraceStepKind.USER -> "用户"
+            TraceStepKind.ASSISTANT -> "助手"
+            TraceStepKind.SYSTEM -> "系统"
+            TraceStepKind.THINKING -> "思考"
+            TraceStepKind.TOOL_CALL -> "调用工具" + if (toolName.isNotBlank()) " · $toolName" else ""
+            TraceStepKind.TOOL_RESULT -> "工具结果" + if (toolName.isNotBlank()) " · $toolName" else ""
+            TraceStepKind.LLM -> "模型调用"
+            else -> type.ifBlank { "步骤" }
+        }
+
+        val subtitle = buildList {
+            o.strv("status", "state").takeIf { it.isNotBlank() }?.let { add(it) }
+            val tok = o.num("total_tokens", "totalTokens", "tokens").toLong()
+            if (tok > 0) add("$tok tok")
+            val durMs = o.num("duration_ms", "durationMs", "latency_ms", "latencyMs", "elapsed_ms").toLong()
+            if (durMs > 0) add(if (durMs >= 1000) String.format("%.2fs", durMs / 1000.0) else "${durMs}ms")
+            o.strv("created_at", "createdAt", "time", "timestamp", "ts").takeIf { it.isNotBlank() }?.let { add(it) }
+        }.joinToString(" · ")
+
+        val body = when (kind) {
+            TraceStepKind.TOOL_CALL -> o.textv("arguments", "args", "input", "params", "parameters", "content")
+            TraceStepKind.TOOL_RESULT -> o.textv("result", "output", "response", "content", "value")
+            else -> o.textv("content", "text", "message", "output", "value")
+        }.ifBlank {
+            // Nothing recognizable — show the whole entry so no data is silently dropped.
+            o.asText()
+        }
+
+        return TraceStep(kind, title, subtitle, body)
+    }
+
+    private fun JsonObject.arrayOf(vararg keys: String): JsonArray? {
+        for (k in keys) (this[k] as? JsonArray)?.let { return it }
+        return null
     }
 
     private fun JsonObject.num(vararg keys: String): Double {

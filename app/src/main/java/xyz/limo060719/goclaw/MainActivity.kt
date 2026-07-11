@@ -1,6 +1,7 @@
 package xyz.limo060719.goclaw
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,6 +10,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -22,9 +24,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.SettingsStore
+import xyz.limo060719.goclaw.work.ApprovalNotifier
 import xyz.limo060719.goclaw.ui.chat.ChatScreen
 import xyz.limo060719.goclaw.ui.settings.AiProviderScreen
 import xyz.limo060719.goclaw.ui.settings.ApprovalScreen
@@ -57,9 +61,18 @@ private fun NavHostController.safePopBackStack() {
 class MainActivity : ComponentActivity() {
     @Inject lateinit var settingsStore: SettingsStore
 
+    /** Route a notification tap asked us to open; consumed once by the NavHost. */
+    private val pendingRoute = MutableStateFlow<String?>(null)
+
     // Apply the in-app language before the Activity's resources are created.
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase))
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingRoute.value = intent.getStringExtra(ApprovalNotifier.EXTRA_OPEN_ROUTE)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,6 +85,7 @@ class MainActivity : ComponentActivity() {
         // 否则 DataStore 异步读出真实值之前,会先用占位值 themeMode="system" 退回系统深浅,
         // 在「系统深色 + 软件浅色」时先渲染成黑再切白,造成进入软件时的黑白闪烁。
         val bootSettings = runBlocking { settingsStore.current() }
+        pendingRoute.value = intent?.getStringExtra(ApprovalNotifier.EXTRA_OPEN_ROUTE)
         setContent {
             val settings by settingsStore.settings.collectAsStateWithLifecycle(initialValue = bootSettings)
             val dark = when (settings.themeMode) {
@@ -89,6 +103,11 @@ class MainActivity : ComponentActivity() {
             GoClawTheme(darkTheme = dark) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val nav = rememberNavController()
+                    // A notification tap (or any deep link) drops a route here; navigate once.
+                    val route by pendingRoute.collectAsStateWithLifecycle()
+                    LaunchedEffect(route) {
+                        route?.let { nav.navigate(it); pendingRoute.value = null }
+                    }
                     NavHost(navController = nav, startDestination = "chat") {
                         composable("chat") {
                             ChatScreen(

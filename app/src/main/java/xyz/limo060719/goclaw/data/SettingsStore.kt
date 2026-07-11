@@ -37,6 +37,8 @@ data class GoClawSettings(
     val ttsBackend: Boolean = false,
     /** Show a connection-status dot (green/red) in the chat top bar. */
     val showConnectionStatus: Boolean = false,
+    /** Poll the gateway in the background and post a notification for pending shell approvals. */
+    val approvalNotifications: Boolean = false,
 ) {
     val isConfigured: Boolean get() = baseUrl.isNotBlank() && apiKey.isNotBlank()
 }
@@ -61,6 +63,7 @@ class SettingsStore @Inject constructor(
         val ASSISTANT_AVATAR = stringPreferencesKey("assistant_avatar")
         val TTS_BACKEND = booleanPreferencesKey("tts_backend")
         val SHOW_CONNECTION_STATUS = booleanPreferencesKey("show_connection_status")
+        val APPROVAL_NOTIFICATIONS = booleanPreferencesKey("approval_notifications")
     }
 
     val settings: Flow<GoClawSettings> = context.dataStore.data.map { p ->
@@ -80,6 +83,7 @@ class SettingsStore @Inject constructor(
             assistantAvatar = p[Keys.ASSISTANT_AVATAR].orEmpty(),
             ttsBackend = p[Keys.TTS_BACKEND] ?: false,
             showConnectionStatus = p[Keys.SHOW_CONNECTION_STATUS] ?: false,
+            approvalNotifications = p[Keys.APPROVAL_NOTIFICATIONS] ?: false,
         )
     }
 
@@ -109,6 +113,10 @@ class SettingsStore @Inject constructor(
 
     suspend fun updateShowConnectionStatus(enabled: Boolean) {
         context.dataStore.edit { p -> p[Keys.SHOW_CONNECTION_STATUS] = enabled }
+    }
+
+    suspend fun updateApprovalNotifications(enabled: Boolean) {
+        context.dataStore.edit { p -> p[Keys.APPROVAL_NOTIFICATIONS] = enabled }
     }
 
     suspend fun updateWechatProfile(

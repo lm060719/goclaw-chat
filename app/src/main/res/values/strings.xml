@@ -389,4 +389,12 @@
     <string name="err_non_audio_fmt">Non-audio response (%1$s): %2$s</string>
     <string name="err_connect_failed">Connection failed</string>
     <string name="err_conn_interrupted">Connection interrupted, recovering the reply…</string>
+
+    <!-- Approval notifications -->
+    <string name="notif_channel_approvals">Approval requests</string>
+    <string name="notif_channel_approvals_desc">Alerts when a shell command is waiting for your approval</string>
+    <string name="notif_approval_title">Command awaiting approval</string>
+    <string name="notif_approval_generic">A shell command is waiting for your approval</string>
+    <string name="settings_approval_notif">Approval notifications</string>
+    <string name="settings_approval_notif_desc">Check the gateway in the background (~every 15 min) and notify you of pending shell approvals</string>
 </resources>

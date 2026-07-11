@@ -389,4 +389,12 @@
     <string name="err_non_audio_fmt">非音频响应(%1$s)：%2$s</string>
     <string name="err_connect_failed">连接失败</string>
     <string name="err_conn_interrupted">连接中断,正在尝试恢复回复…</string>
+
+    <!-- Approval notifications -->
+    <string name="notif_channel_approvals">审批请求</string>
+    <string name="notif_channel_approvals_desc">有 shell 命令等待你审批时提醒</string>
+    <string name="notif_approval_title">有命令待审批</string>
+    <string name="notif_approval_generic">有一条 shell 命令等待你审批</string>
+    <string name="settings_approval_notif">审批通知</string>
+    <string name="settings_approval_notif_desc">在后台定期(约每 15 分钟)检查网关,有待审批的 shell 命令时通知你</string>
 </resources>

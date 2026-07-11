@@ -1,10 +1,14 @@
 package xyz.limo060719.goclaw.ui.settings
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +46,7 @@ import kotlinx.coroutines.launch
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.util.ImageUtil
+import xyz.limo060719.goclaw.work.ApprovalWorkScheduler
 import xyz.limo060719.goclaw.util.LocaleManager
 import java.io.File
 import javax.inject.Inject
@@ -65,6 +70,12 @@ class AppSettingsViewModel @Inject constructor(
     fun setThemeMode(mode: String) = viewModelScope.launch { store.updateThemeMode(mode) }
     fun setTtsBackend(on: Boolean) = viewModelScope.launch { store.updateTtsBackend(on) }
     fun setShowConnectionStatus(on: Boolean) = viewModelScope.launch { store.updateShowConnectionStatus(on) }
+
+    /** Persists the approval-notification preference and (un)schedules the background poll. */
+    fun setApprovalNotifications(on: Boolean) = viewModelScope.launch {
+        store.updateApprovalNotifications(on)
+        if (on) ApprovalWorkScheduler.schedule(context) else ApprovalWorkScheduler.cancel(context)
+    }
     fun saveProfile(selfName: String, assistantName: String) =
         viewModelScope.launch { store.updateWechatProfile(selfName, assistantName) }
 
@@ -83,6 +94,12 @@ fun SettingsScreen(
 ) {
     val s by vm.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // On Android 13+ the background poll can only notify after POST_NOTIFICATIONS is granted, so
+    // the toggle turns on only once permission is secured.
+    val notifPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) vm.setApprovalNotifications(true) }
 
     Scaffold(
         topBar = {
@@ -230,6 +247,36 @@ fun SettingsScreen(
                         )
                     }
                     Switch(checked = s.showConnectionStatus, onCheckedChange = vm::setShowConnectionStatus)
+                }
+            }
+
+            // 审批通知
+            SettingCard(color = MaterialTheme.colorScheme.surfaceContainer) {
+                Row(
+                    Modifier.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_approval_notif), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            stringResource(R.string.settings_approval_notif_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = s.approvalNotifications,
+                        onCheckedChange = { on ->
+                            when {
+                                !on -> vm.setApprovalNotifications(false)
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                                    PackageManager.PERMISSION_GRANTED ->
+                                    notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                else -> vm.setApprovalNotifications(true)
+                            }
+                        },
+                    )
                 }
             }
         }

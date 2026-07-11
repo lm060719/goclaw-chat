@@ -1,13 +1,16 @@
 package xyz.limo060719.goclaw.work
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import xyz.limo060719.goclaw.MainActivity
 import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.data.remote.ExecApproval
@@ -25,7 +28,13 @@ object ApprovalNotifier {
 
     /** Whether notifications can actually be shown (POST_NOTIFICATIONS granted + not disabled). */
     fun canPost(context: Context): Boolean =
-        NotificationManagerCompat.from(context).areNotificationsEnabled()
+        hasPostPermission(context) && NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    /** POST_NOTIFICATIONS is a runtime permission on API 33+; auto-granted below. */
+    private fun hasPostPermission(context: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -40,6 +49,11 @@ object ApprovalNotifier {
     }
 
     fun notify(context: Context, approval: ExecApproval) {
+        // Inline permission check (satisfies lint's MissingPermission right at the notify() call).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return
         val body = approval.command.ifBlank { approval.reason }
             .ifBlank { context.getString(R.string.notif_approval_generic) }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

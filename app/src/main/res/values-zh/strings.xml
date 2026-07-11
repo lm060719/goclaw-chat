@@ -86,6 +86,11 @@
     <!-- Message bubble -->
     <string name="msg_multiselect">多选</string>
     <string name="msg_regenerate">重新生成</string>
+    <string name="msg_branch">从此分支</string>
+    <string name="msg_branch_title_fmt">%1$s(分支)</string>
+    <string name="msg_branch_done">已创建分支会话</string>
+    <string name="err_branch_failed">分支失败:%1$s</string>
+    <string name="err_branch_unsaved">请先发送一条消息,再分支</string>
     <string name="chat_retry">重试</string>
     <string name="err_cannot_regenerate">仅含文件或语音的消息无法重新生成</string>
     <string name="msg_thinking_active">正在思考…</string>
@@ -233,6 +238,11 @@
     <string name="usage_tool_calls">工具调用</string>
     <string name="usage_unique_users">独立用户</string>
     <string name="usage_errors">错误数</string>
+    <string name="usage_trend_title">Token 趋势</string>
+    <string name="usage_trend_peak_fmt">峰值 %1$s tokens</string>
+    <string name="usage_breakdown_title">按模型 / Agent</string>
+    <string name="usage_trend_debug_title">趋势不可用(调试)</string>
+    <string name="usage_trend_debug_desc">没有趋势图 —— timeseries/breakdown 端点返回如下。若是 HTTP 404 说明网关没有这两个端点;否则把这段发来以便对齐字段名:</string>
     <string name="usage_empty">暂无用量数据</string>
     <string name="usage_raw_title">原始返回（调试 · 字段对齐用）</string>
     <string name="usage_raw_desc">数值为 0 多半是字段名不同。把下面这段发给开发者即可精确对齐：</string>

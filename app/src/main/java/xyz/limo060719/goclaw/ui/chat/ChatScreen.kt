@@ -256,6 +256,8 @@ fun ChatScreen(
                                 val canRegenerate = !state.isStreaming &&
                                     msg.role == Role.ASSISTANT &&
                                     msg.id == state.messages.lastOrNull()?.id
+                                // Branch: fork the server session from any text message (not mid-stream).
+                                val canBranch = !state.isStreaming && isTextMessage
                                 MessageRow(
                                     msg = msg,
                                     wechat = wechat,
@@ -273,6 +275,7 @@ fun ChatScreen(
                                     onDelete = { pendingDelete = setOf(msg.id) },
                                     onDownloadFile = { vm.downloadAndSaveFile(it) },
                                     onRegenerate = if (canRegenerate) vm::regenerate else null,
+                                    onBranch = if (canBranch) ({ vm.branchFrom(msg.id) }) else null,
                                 )
                             }
                             if (state.isStreaming && state.messages.lastOrNull()?.streaming != true) {

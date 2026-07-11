@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ContentCopy
@@ -82,6 +83,7 @@ internal fun MessageRow(
     onDelete: () -> Unit,
     onDownloadFile: ((FileRef) -> Unit)? = null,
     onRegenerate: (() -> Unit)? = null,
+    onBranch: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val rowBg =
@@ -123,6 +125,13 @@ internal fun MessageRow(
                     text = { Text(stringResource(R.string.msg_regenerate)) },
                     leadingIcon = { Icon(Icons.Filled.Refresh, null) },
                     onClick = { menuOpen = false; regen() },
+                )
+            }
+            onBranch?.let { branch ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.msg_branch)) },
+                    leadingIcon = { Icon(Icons.Filled.AltRoute, null) },
+                    onClick = { menuOpen = false; branch() },
                 )
             }
             DropdownMenuItem(

@@ -86,6 +86,11 @@
     <!-- Message bubble -->
     <string name="msg_multiselect">Select</string>
     <string name="msg_regenerate">Regenerate</string>
+    <string name="msg_branch">Branch from here</string>
+    <string name="msg_branch_title_fmt">%1$s (branch)</string>
+    <string name="msg_branch_done">Created a branched chat</string>
+    <string name="err_branch_failed">Branch failed: %1$s</string>
+    <string name="err_branch_unsaved">Send a message first, then branch</string>
     <string name="chat_retry">Retry</string>
     <string name="err_cannot_regenerate">Can\'t regenerate a file-only or voice message</string>
     <string name="msg_thinking_active">Thinking…</string>
@@ -233,6 +238,11 @@
     <string name="usage_tool_calls">Tool calls</string>
     <string name="usage_unique_users">Unique users</string>
     <string name="usage_errors">Errors</string>
+    <string name="usage_trend_title">Token trend</string>
+    <string name="usage_trend_peak_fmt">Peak %1$s tokens</string>
+    <string name="usage_breakdown_title">By model / agent</string>
+    <string name="usage_trend_debug_title">Trend unavailable (debug)</string>
+    <string name="usage_trend_debug_desc">No trend chart — the timeseries/breakdown endpoints returned this. If it\'s an HTTP 404 the gateway lacks them; otherwise send this so the field names can be aligned:</string>
     <string name="usage_empty">No usage data</string>
     <string name="usage_raw_title">Raw response (debug · field alignment)</string>
     <string name="usage_raw_desc">Zeros usually mean different field names. Send this to the developer for exact alignment:</string>

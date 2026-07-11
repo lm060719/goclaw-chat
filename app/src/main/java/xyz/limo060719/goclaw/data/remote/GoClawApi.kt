@@ -44,6 +44,22 @@ class UsageSummary(
     val errors: Long = 0,
 )
 
+/** One time bucket of usage (`/v1/usage/timeseries`) — tokens/cost/requests over a window. */
+class UsagePoint(
+    val label: String,
+    val tokens: Long,
+    val costUsd: Double,
+    val requests: Long,
+)
+
+/** One row of a usage breakdown (`/v1/usage/breakdown`) grouped by model / agent / provider. */
+class UsageBreakdownRow(
+    val name: String,
+    val tokens: Long,
+    val costUsd: Double,
+    val requests: Long,
+)
+
 /** One LLM execution trace row (`/v1/traces`). */
 class TraceInfo(
     val id: String,
@@ -153,6 +169,28 @@ class GoClawApi @Inject constructor(
     suspend fun sessions(s: GoClawSettings): Result<List<SessionInfo>> =
         getList(s, "/v1/sessions") { raw -> parseList(raw, SessionInfo.serializer()) }
 
+    /**
+     * Forks a chat session at [upToIndex] into a new session keyed [newSessionKey]
+     * (`POST /v1/chat/sessions/{key}/branch`). Best-effort: some gateway builds don't expose this
+     * route, so a 404/error surfaces as Result.failure for the caller to report — it never crashes.
+     * NOTE: `up_to_index` semantics (which server-transcript entries it counts) are unverified against
+     * this backend; it's sent as a best-effort cut point derived from the local message position.
+     */
+    suspend fun branchSession(
+        s: GoClawSettings,
+        sessionKey: String,
+        upToIndex: Int,
+        newSessionKey: String,
+        label: String,
+    ): Result<Unit> {
+        val body = buildJsonObject {
+            put("up_to_index", upToIndex)
+            put("new_session_key", newSessionKey)
+            if (label.isNotBlank()) put("label", label)
+        }.toString()
+        return postOk(s, "/v1/chat/sessions/${java.net.URLEncoder.encode(sessionKey, "UTF-8")}/branch", body)
+    }
+
     /** Lists configured LLM providers (`GET /v1/providers`). */
     suspend fun providers(s: GoClawSettings): Result<List<ProviderInfo>> =
         getList(s, "/v1/providers") { raw -> parseList(raw, ProviderInfo.serializer()) }
@@ -183,6 +221,46 @@ class GoClawApi @Inject constructor(
     suspend fun usageRaw(s: GoClawSettings): Result<String> =
         getElement(s, "/v1/usage/summary").map { it.toString() }
 
+    /** Both trend endpoints require an ISO-8601 `from`/`to` window (400 "from and to are required" otherwise). */
+    private fun usageWindow(days: Long): String {
+        val now = java.time.Instant.now()
+        val from = now.minus(days, java.time.temporal.ChronoUnit.DAYS)
+        return "from=$from&to=$now"
+    }
+
+    /**
+     * Usage over time (`GET /v1/usage/timeseries?from&to`) for the last 30 days. The gateway returns
+     * hourly buckets, so we aggregate them into daily points for a legible chart. Best-effort: a
+     * failure just means no trend to show — the summary is the source of truth.
+     */
+    suspend fun usageTimeseries(s: GoClawSettings): Result<List<UsagePoint>> =
+        getElement(s, "/v1/usage/timeseries?${usageWindow(30)}").mapCatching { aggregateDaily(parseTimeseries(it)) }
+
+    /** Usage grouped by model/agent/provider (`GET /v1/usage/breakdown?from&to`), last 30 days. */
+    suspend fun usageBreakdown(s: GoClawSettings): Result<List<UsageBreakdownRow>> =
+        getElement(s, "/v1/usage/breakdown?${usageWindow(30)}").mapCatching { parseBreakdown(it) }
+
+    /** Raw timeseries/breakdown bodies — a diagnostic shown only when a trend fetch fails. */
+    suspend fun usageTimeseriesRaw(s: GoClawSettings): Result<String> =
+        getElement(s, "/v1/usage/timeseries?${usageWindow(30)}").map { it.toString() }
+
+    suspend fun usageBreakdownRaw(s: GoClawSettings): Result<String> =
+        getElement(s, "/v1/usage/breakdown?${usageWindow(30)}").map { it.toString() }
+
+    /** Collapses hourly usage points into one point per calendar day (ISO date prefix), summed. */
+    private fun aggregateDaily(points: List<UsagePoint>): List<UsagePoint> =
+        points.filter { it.label.length >= 10 }
+            .groupBy { it.label.take(10) }
+            .toSortedMap()
+            .map { (date, pts) ->
+                UsagePoint(
+                    label = date,
+                    tokens = pts.sumOf { it.tokens },
+                    costUsd = pts.sumOf { it.costUsd },
+                    requests = pts.sumOf { it.requests },
+                )
+            }
+
     /** Recent LLM traces (`GET /v1/traces`). */
     suspend fun traces(s: GoClawSettings, limit: Int = 50): Result<List<TraceInfo>> =
         getElement(s, "/v1/traces?limit=$limit").mapCatching { parseTraces(it) }
@@ -198,7 +276,9 @@ class GoClawApi @Inject constructor(
                 val req = with(http) { Request.Builder().url(url(s.baseUrl, path)).goClawAuth(s).get().build() }
                 http.client.newCall(req).execute().use { resp ->
                     val raw = resp.body?.string().orEmpty()
-                    if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                    // Include the body: 4xx responses usually explain what's wrong (e.g. a missing
+                    // required query param), which is exactly what the usage diagnostic needs.
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}: ${raw.take(300)}")
                     http.json.parseToJsonElement(raw)
                 }
             }
@@ -227,6 +307,69 @@ class GoClawApi @Inject constructor(
             uniqueUsers = o.num("unique_users", "uniqueUsers", "users").toLong(),
             errors = o.num("errors", "error_count", "errorCount").toLong(),
         )
+    }
+
+    /** Sums input+output token fields (or a single total) on a usage-like object. */
+    private fun JsonObject.tokenSum(): Long {
+        var total = num("total_tokens", "totalTokens", "tokens").toLong()
+        if (total == 0L) {
+            val input = num("prompt_tokens", "promptTokens", "input_tokens", "inputTokens").toLong()
+            val output = num("completion_tokens", "completionTokens", "output_tokens", "outputTokens").toLong()
+            total = input + output
+        }
+        return total
+    }
+
+    private fun JsonObject.costUsd(): Double {
+        var cost = num("cost_usd", "costUsd", "total_cost_usd", "cost", "total_cost")
+        if (cost == 0.0) cost = num("cost_micros", "total_cost_micros", "costMicros") / 1_000_000.0
+        return cost
+    }
+
+    /**
+     * Tolerant parse of a usage timeseries. Accepts the points under any of several array keys
+     * (or nested under `current`), and reads a time label + tokens/cost/requests from each point
+     * under many candidate field names — the exact shape is undocumented and varies by build.
+     */
+    private fun parseTimeseries(el: JsonElement): List<UsagePoint> {
+        val root = el as? JsonObject
+        val arr = when (el) {
+            is JsonArray -> el
+            is JsonObject -> el.arrayOf("series", "points", "timeseries", "buckets", "data", "items")
+                ?: (el["current"] as? JsonObject)?.arrayOf("series", "points", "timeseries", "buckets", "data")
+                ?: root?.values?.firstOrNull { it is JsonArray } as? JsonArray
+            else -> null
+        } ?: return emptyList()
+        return arr.mapNotNull { it as? JsonObject }.map { o ->
+            UsagePoint(
+                label = o.strv("bucket_time", "bucketTime", "time", "timestamp", "date", "day", "bucket", "period", "label", "ts", "hour"),
+                tokens = o.tokenSum(),
+                costUsd = o.costUsd(),
+                requests = o.num("requests", "request_count", "requestCount", "count", "calls").toLong(),
+            )
+        }
+    }
+
+    /** Tolerant parse of a usage breakdown grouped by model/agent/provider. */
+    private fun parseBreakdown(el: JsonElement): List<UsageBreakdownRow> {
+        val root = el as? JsonObject
+        val arr = when (el) {
+            is JsonArray -> el
+            is JsonObject -> el.arrayOf("breakdown", "by_model", "byModel", "models", "by_agent",
+                "byAgent", "agents", "rows", "groups", "data", "items")
+                ?: root?.values?.firstOrNull { it is JsonArray } as? JsonArray
+            else -> null
+        } ?: return emptyList()
+        return arr.mapNotNull { it as? JsonObject }.mapNotNull { o ->
+            val name = o.strv("model", "agent", "provider", "name", "key", "label", "id", "group")
+            if (name.isBlank()) return@mapNotNull null
+            UsageBreakdownRow(
+                name = name,
+                tokens = o.tokenSum(),
+                costUsd = o.costUsd(),
+                requests = o.num("requests", "request_count", "requestCount", "count", "calls").toLong(),
+            )
+        }.sortedByDescending { it.tokens }
     }
 
     /* ---- Backend (executable) skills ---- */
@@ -301,6 +444,20 @@ class GoClawApi @Inject constructor(
                 }
                 http.client.newCall(req).execute().use { resp ->
                     if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                }
+                Unit
+            }
+        }
+
+    private suspend fun postOk(s: GoClawSettings, path: String, jsonBody: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val req = with(http) {
+                    Request.Builder().url(url(s.baseUrl, path)).goClawAuth(s)
+                        .post(jsonBody.toRequestBody("application/json".toMediaTypeOrNull())).build()
+                }
+                http.client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) error("HTTP ${resp.code}: ${resp.body?.string().orEmpty().take(160)}")
                 }
                 Unit
             }

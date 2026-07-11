@@ -529,6 +529,66 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Forks the conversation at [messageId] into a new one: the server session is branched (so the
+     * new chat resumes the forked context) and a local conversation is created holding the messages
+     * up to and including that point, then opened. No-op while streaming or before the conversation
+     * is persisted; a gateway that lacks the branch route surfaces a friendly error.
+     */
+    fun branchFrom(messageId: String) {
+        if (_state.value.isStreaming) return
+        val msgs = _state.value.messages
+        val idx = msgs.indexOfFirst { it.id == messageId }
+        if (idx < 0) return
+        // A conversation only has a server session once its first message has been sent.
+        val cid = currentConversationId
+        if (cid == null) {
+            _state.value = _state.value.copy(error = context.getString(R.string.err_branch_unsaved))
+            return
+        }
+        // Older/opened conversations may have no bound agent key — fall back like send() does,
+        // so the branch attempt (and any error) is never swallowed silently.
+        val ak = currentAgentKey ?: _state.value.agent.ifBlank { activeAgent }.ifBlank { "default" }
+        val keptPrefix = msgs.take(idx + 1).map { it.copy(streaming = false) }
+        // Best-effort server cut point: count the user/assistant turns in the kept prefix.
+        val upToIndex = keptPrefix.count { it.role == Role.USER || it.role == Role.ASSISTANT }
+        val baseTitle = currentTitle ?: keptPrefix.firstOrNull { it.role == Role.USER }
+            ?.text?.trim()?.take(30)?.takeIf { it.isNotBlank() } ?: context.getString(R.string.chat_untitled)
+        val newTitle = context.getString(R.string.msg_branch_title_fmt, baseTitle)
+
+        viewModelScope.launch {
+            repository.branchConversation(cid, ak, upToIndex, baseTitle)
+                .onSuccess { newCid ->
+                    conversationStore.save(
+                        Conversation(
+                            id = newCid,
+                            title = newTitle,
+                            updatedAt = System.currentTimeMillis(),
+                            messages = keptPrefix,
+                            agentKey = ak,
+                        )
+                    )
+                    streamJob?.cancel()
+                    syncJob?.cancel()
+                    currentConversationId = newCid
+                    currentTitle = newTitle
+                    currentAgentKey = ak
+                    currentAssistantId = null
+                    _state.value = ChatUiState(
+                        messages = keptPrefix,
+                        agent = ak,
+                        ttsEnabled = _state.value.ttsEnabled,
+                        error = context.getString(R.string.msg_branch_done),
+                    )
+                }
+                .onFailure {
+                    _state.value = _state.value.copy(
+                        error = context.getString(R.string.err_branch_failed, it.message ?: "")
+                    )
+                }
+        }
+    }
+
     fun stopStreaming() {
         val cid = currentConversationId
         val ak = currentAgentKey

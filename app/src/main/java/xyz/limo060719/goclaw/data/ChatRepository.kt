@@ -100,6 +100,26 @@ class ChatRepository @Inject constructor(
         runCatching { ws.abortRun(s, sessionKeyOf(agentKey.ifBlank { "default" }, conversationId)) }
     }
 
+    /**
+     * Forks this conversation's server session at [upToIndex] into a brand-new conversation.
+     * Returns the new conversation id (whose derived session key is the fork's key, so continuing
+     * the new chat resumes the forked context) or a failure if the gateway rejects/omits the route.
+     */
+    suspend fun branchConversation(
+        conversationId: String,
+        agentKey: String,
+        upToIndex: Int,
+        label: String,
+    ): Result<String> {
+        val s = settingsStore.current()
+        if (!s.isConfigured) return Result.failure(IllegalStateException(context.getString(R.string.err_not_configured)))
+        val agent = agentKey.ifBlank { "default" }
+        val newConversationId = java.util.UUID.randomUUID().toString()
+        val oldKey = sessionKeyOf(agent, conversationId)
+        val newKey = sessionKeyOf(agent, newConversationId)
+        return api.branchSession(s, oldKey, upToIndex, newKey, label).map { newConversationId }
+    }
+
     /** Deletes the conversation's server-side session + history. Best-effort. */
     suspend fun deleteServerSession(conversationId: String, agentKey: String) {
         val s = settingsStore.current()

@@ -85,6 +85,9 @@
 
     <!-- Message bubble -->
     <string name="msg_multiselect">多选</string>
+    <string name="msg_regenerate">重新生成</string>
+    <string name="chat_retry">重试</string>
+    <string name="err_cannot_regenerate">仅含文件或语音的消息无法重新生成</string>
     <string name="msg_thinking_active">正在思考…</string>
     <string name="msg_thinking">思考过程</string>
     <string name="msg_thinking_collapse">收起思考</string>

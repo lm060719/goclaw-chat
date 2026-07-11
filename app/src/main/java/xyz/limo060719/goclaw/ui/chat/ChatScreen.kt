@@ -38,8 +38,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
@@ -93,6 +95,7 @@ fun ChatScreen(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val copiedMsg = stringResource(R.string.common_copied)
+    val retryLabel = stringResource(R.string.chat_retry)
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -137,7 +140,15 @@ fun ChatScreen(
         if (state.isStreaming && state.messages.isNotEmpty()) listState.scrollToItem(state.messages.lastIndex)
     }
     LaunchedEffect(state.error) {
-        state.error?.let { scope.launch { snackbar.showSnackbar(it) }; vm.clearError() }
+        val err = state.error ?: return@LaunchedEffect
+        val retryable = state.retryable
+        vm.clearError()
+        val result = snackbar.showSnackbar(
+            message = err,
+            actionLabel = if (retryable) retryLabel else null,
+            duration = SnackbarDuration.Short,
+        )
+        if (result == SnackbarResult.ActionPerformed) vm.regenerate()
     }
     // When returning to the foreground, recover any reply that finished while we were away.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.syncPending() }
@@ -241,6 +252,10 @@ fun ChatScreen(
                         ) {
                             items(state.messages, key = { it.id }) { msg ->
                                 val isTextMessage = msg.role != Role.TOOL && msg.text.isNotBlank()
+                                // Regenerate only makes sense for the latest reply, and not mid-stream.
+                                val canRegenerate = !state.isStreaming &&
+                                    msg.role == Role.ASSISTANT &&
+                                    msg.id == state.messages.lastOrNull()?.id
                                 MessageRow(
                                     msg = msg,
                                     wechat = wechat,
@@ -257,6 +272,7 @@ fun ChatScreen(
                                     onShare = { shareText(context, vm.textOf(setOf(msg.id))) },
                                     onDelete = { pendingDelete = setOf(msg.id) },
                                     onDownloadFile = { vm.downloadAndSaveFile(it) },
+                                    onRegenerate = if (canRegenerate) vm::regenerate else null,
                                 )
                             }
                             if (state.isStreaming && state.messages.lastOrNull()?.streaming != true) {

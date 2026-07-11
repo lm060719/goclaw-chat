@@ -18,6 +18,8 @@ uiautomator = "2.3.0"
 profileinstaller = "1.4.1"
 splashscreen = "1.0.1"
 testExtJunit = "1.2.1"
+junit = "4.13.2"
+coroutinesTest = "1.9.0"
 
 [libraries]
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -46,6 +48,8 @@ androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", versi
 benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "benchmark" }
 uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
 test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "testExtJunit" }
+junit = { module = "junit:junit", version.ref = "junit" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

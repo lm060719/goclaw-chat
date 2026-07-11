@@ -85,6 +85,9 @@
 
     <!-- Message bubble -->
     <string name="msg_multiselect">Select</string>
+    <string name="msg_regenerate">Regenerate</string>
+    <string name="chat_retry">Retry</string>
+    <string name="err_cannot_regenerate">Can\'t regenerate a file-only or voice message</string>
     <string name="msg_thinking_active">Thinking…</string>
     <string name="msg_thinking">Reasoning</string>
     <string name="msg_thinking_collapse">Collapse reasoning</string>

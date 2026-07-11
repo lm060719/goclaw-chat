@@ -70,4 +70,7 @@ dependencies {
     implementation(libs.profileinstaller)
     // Consumes the profile produced by the :baselineprofile module.
     baselineProfile(project(":baselineprofile"))
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

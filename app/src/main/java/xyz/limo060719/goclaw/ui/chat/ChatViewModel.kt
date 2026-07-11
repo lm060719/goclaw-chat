@@ -27,7 +27,6 @@ import xyz.limo060719.goclaw.data.Conversation
 import xyz.limo060719.goclaw.data.ConversationMeta
 import xyz.limo060719.goclaw.data.ConversationStore
 import xyz.limo060719.goclaw.data.SettingsStore
-import xyz.limo060719.goclaw.data.remote.ServerMessage
 import xyz.limo060719.goclaw.domain.model.Attachment
 import xyz.limo060719.goclaw.domain.model.FileRef
 import xyz.limo060719.goclaw.domain.model.Role
@@ -57,6 +56,8 @@ data class ChatUiState(
     val isRecording: Boolean = false,
     val ttsEnabled: Boolean = false,
     val error: String? = null,
+    /** True when [error] came from a failed chat turn that can be re-sent (drives the snackbar "Retry"). */
+    val retryable: Boolean = false,
     val selectionMode: Boolean = false,
     val selectedIds: Set<String> = emptySet(),
 )
@@ -398,7 +399,8 @@ class ChatViewModel @Inject constructor(
             repeat(12) {
                 if (currentConversationId != cid || _state.value.isStreaming) return@launch
                 if (!isPending(_state.value.messages.lastOrNull())) return@launch
-                val reply = replyForLatestTurn(repository.fetchServerHistory(cid, ak))
+                val localUserCount = _state.value.messages.count { it.role == Role.USER }
+                val reply = replyForLatestTurn(repository.fetchServerHistory(cid, ak), localUserCount)
                 if (reply != null) {
                     val last = _state.value.messages.lastOrNull()
                     if (currentConversationId == cid && !_state.value.isStreaming && last != null) {
@@ -415,26 +417,6 @@ class ChatViewModel @Inject constructor(
                 kotlinx.coroutines.delay(2500)
             }
         }
-    }
-
-    /**
-     * The assistant reply to our *latest* user turn, or null if the server hasn't produced it yet.
-     *
-     * This deliberately ignores the previous turn's reply. It locates the server-transcript entry
-     * for our latest user message (the N-th `user` message, where N is how many user turns we've
-     * sent locally) and only accepts an `assistant` message that comes AFTER it. If the server
-     * hasn't yet recorded our latest user message — e.g. we backgrounded the app before `chat.send`
-     * landed — there is no such entry, so we return null and keep polling instead of surfacing the
-     * *previous* reply as the answer to this turn.
-     */
-    private fun replyForLatestTurn(history: List<ServerMessage>): String? {
-        val localUserCount = _state.value.messages.count { it.role == Role.USER }
-        if (localUserCount == 0) return null
-        val ourUserIdx = history
-            .mapIndexedNotNull { i, m -> if (m.role == "user") i else null }
-            .getOrNull(localUserCount - 1) ?: return null
-        return history.drop(ourUserIdx + 1)
-            .lastOrNull { it.role == "assistant" && it.content.isNotBlank() }?.content
     }
 
     private fun isPending(m: UiMessage?): Boolean =
@@ -482,6 +464,33 @@ class ChatViewModel @Inject constructor(
         val files = s.files
         if ((text.isEmpty() && attachments.isEmpty() && files.isEmpty()) || s.isStreaming) return
 
+        _state.value = _state.value.copy(input = "", attachments = emptyList(), files = emptyList())
+        dispatchTurn(text, attachments, files)
+    }
+
+    /**
+     * Re-sends the latest user turn to get a fresh reply — used by both the "Retry" snackbar action
+     * after a failed turn and the "Regenerate" menu on the latest reply. Drops the old user bubble
+     * and everything after it (the failed/previous reply), then dispatches the turn again;
+     * server-side context is unaffected. File-only / voice turns can't be re-sent (the picked file
+     * is gone), so those are refused with a hint.
+     */
+    fun regenerate() {
+        if (_state.value.isStreaming) return
+        val msgs = _state.value.messages
+        val lastUserIdx = msgs.indexOfLast { it.role == Role.USER }
+        if (lastUserIdx < 0) return
+        val lastUser = msgs[lastUserIdx]
+        if (lastUser.text.isBlank() && lastUser.attachments.isEmpty()) {
+            _state.value = _state.value.copy(error = context.getString(R.string.err_cannot_regenerate))
+            return
+        }
+        _state.value = _state.value.copy(messages = msgs.take(lastUserIdx))
+        dispatchTurn(lastUser.text, lastUser.attachments, emptyList())
+    }
+
+    /** Appends a user bubble, uploads any media, then streams the reply. Shared by send/regenerate. */
+    private fun dispatchTurn(text: String, attachments: List<Attachment>, files: List<PickedFile>) {
         syncJob?.cancel()
         val firstMessage = _state.value.messages.isEmpty()
         // Bind the conversation to the chosen/active agent on its first message; fixed after.
@@ -493,9 +502,7 @@ class ChatViewModel @Inject constructor(
         appendMessage(
             UiMessage(role = Role.USER, text = text, attachments = attachments, fileNames = files.map { it.name })
         )
-        _state.value = _state.value.copy(
-            input = "", attachments = emptyList(), files = emptyList(), isStreaming = true,
-        )
+        _state.value = _state.value.copy(isStreaming = true, retryable = false)
         currentAssistantId = null
         streamedAnyBlock = false
         persist()
@@ -572,7 +579,7 @@ class ChatViewModel @Inject constructor(
                 // A partially-streamed block was cut off — flag it so we can recover the full reply.
                 currentAssistantId?.let { id -> updateMessage(id) { it.copy(incomplete = true) } }
                 finalizeBlock()
-                _state.value = _state.value.copy(isStreaming = false, error = ev.message)
+                _state.value = _state.value.copy(isStreaming = false, error = ev.message, retryable = true)
                 persist()
                 recoverReply()
             }

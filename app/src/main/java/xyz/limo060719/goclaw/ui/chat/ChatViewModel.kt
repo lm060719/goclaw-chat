@@ -206,9 +206,14 @@ class ChatViewModel @Inject constructor(
         _state.value.messages.filter { it.id in ids }.joinToString("\n\n", transform = ::messageText)
 
     private fun messageText(m: UiMessage): String = when (m.role) {
-        Role.TOOL -> m.tool?.let { context.getString(R.string.tool_copy_label, it.name, it.result) }.orEmpty()
-        else -> m.text
+        Role.TOOL -> m.tool?.let { toolText(it) }.orEmpty() // legacy standalone tool message
+        else -> (m.tools.map(::toolText) + m.text)
+            .filter { it.isNotBlank() }
+            .joinToString("\n\n")
     }
+
+    private fun toolText(t: ToolCard): String =
+        context.getString(R.string.tool_copy_label, t.name, t.result)
 
     fun toggleTts() {
         val on = !_state.value.ttsEnabled
@@ -606,12 +611,20 @@ class ChatViewModel @Inject constructor(
             is ChatEvent.Thinking -> openThinking(ev.text)
             is ChatEvent.AnswerBlock -> completeBlock(ev.text)
             is ChatEvent.ToolInvocation -> {
-                finalizeBlock()
                 val files = ToolCard.extractFiles(ev.arguments, ev.result)
                 android.util.Log.d("GoClawChat", "ToolInvocation name=${ev.name} args=${ev.arguments.take(200)} result=${ev.result.take(200)} files=${files.size}")
-                appendMessage(
-                    UiMessage(role = Role.TOOL, tool = ToolCard(ev.name, ev.arguments, ev.result, files))
-                )
+                val id = ensureBubble()
+                updateMessage(id) {
+                    // An answer block that arrived before a tool call was intermediate → fold it in,
+                    // exactly as openThinking does, so the turn stays in ONE bubble.
+                    val t = if (it.text.isNotBlank()) appendStep(it.thinking, it.text) else it.thinking
+                    it.copy(
+                        thinking = t,
+                        text = "",
+                        tools = it.tools + ToolCard(ev.name, ev.arguments, ev.result, files),
+                        streaming = true,
+                    )
+                }
                 persist()
             }
             is ChatEvent.AssistantDone -> {
@@ -649,7 +662,6 @@ class ChatViewModel @Inject constructor(
     /** Opens (once) the single assistant bubble for this turn. */
     private fun ensureBubble(): String {
         currentAssistantId?.let { return it }
-        streamedAnyBlock = true
         val msg = UiMessage(role = Role.ASSISTANT, streaming = true)
         currentAssistantId = msg.id
         appendMessage(msg)
@@ -680,6 +692,9 @@ class ChatViewModel @Inject constructor(
     /** The latest answer block. Kept visible; folded into `thinking` only if a newer block supersedes it. */
     private fun completeBlock(text: String) {
         val id = ensureBubble()
+        // Only a real answer block makes the streamed text authoritative over the final `res`;
+        // a bubble opened by thinking/tools alone must still be backfilled by AssistantDone.
+        streamedAnyBlock = true
         updateMessage(id) {
             // Two answer blocks in a row (no reasoning between) → the older one was intermediate.
             val t = if (it.text.isNotBlank()) appendStep(it.thinking, it.text) else it.thinking

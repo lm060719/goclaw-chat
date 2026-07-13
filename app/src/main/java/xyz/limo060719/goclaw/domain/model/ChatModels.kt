@@ -129,7 +129,11 @@ data class UiMessage(
     val attachments: List<Attachment> = emptyList(),
     /** Names of non-image files attached to this message (for display). */
     val fileNames: List<String> = emptyList(),
+    /** Legacy: a standalone `Role.TOOL` message. Only set on conversations saved before tool
+     *  cards moved inside the assistant bubble; still rendered so old history looks the same. */
     val tool: ToolCard? = null,
+    /** Tool calls made during this assistant turn, in call order (shown inside the bubble). */
+    val tools: List<ToolCard> = emptyList(),
     /** Files delivered by the agent (e.g. via send_file tool, media field). */
     val files: List<FileRef> = emptyList(),
     val streaming: Boolean = false,

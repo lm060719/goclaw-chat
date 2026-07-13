@@ -156,7 +156,8 @@ private fun MessageItem(
     onDownloadFile: ((FileRef) -> Unit)? = null,
 ) {
     when (msg.role) {
-        Role.TOOL -> ToolCardView(msg, onDownload = onDownloadFile)
+        // Legacy history only — tool calls now live inside the assistant bubble.
+        Role.TOOL -> msg.tool?.let { ToolCardView(it, onDownload = onDownloadFile) }
         else -> ChatBubble(msg, wechat, profile, onDownloadFile)
     }
 }
@@ -219,7 +220,7 @@ private fun ChatBubble(
                 contentColor = bubbleContent,
                 shape = bubbleShape,
                 border = bubbleBorder,
-                modifier = Modifier.widthIn(max = 300.dp),
+                modifier = Modifier.widthIn(max = if (msg.tools.isNotEmpty()) 340.dp else 300.dp),
             ) {
                 Column(Modifier.padding(if (wechat) 10.dp else 14.dp)) {
                     if (!isUser && msg.thinking.isNotBlank()) {
@@ -227,8 +228,13 @@ private fun ChatBubble(
                             text = msg.thinking,
                             active = msg.streaming && msg.text.isBlank(),
                         )
-                        if (msg.text.isNotEmpty()) Spacer(Modifier.height(8.dp))
+                        if (msg.text.isNotEmpty() || msg.tools.isNotEmpty()) Spacer(Modifier.height(8.dp))
                     }
+                    msg.tools.forEach { tool ->
+                        ToolCardView(tool, onDownload = onDownloadFile)
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    if (msg.tools.isNotEmpty() && msg.text.isNotEmpty()) Spacer(Modifier.height(2.dp))
                     msg.attachments.forEach { att ->
                         AsyncImage(
                             model = att.previewUri,

@@ -33,13 +33,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.domain.model.FileRef
-import xyz.limo060719.goclaw.domain.model.UiMessage
+import xyz.limo060719.goclaw.domain.model.ToolCard
 import xyz.limo060719.goclaw.ui.theme.CodeFontFamily
 
 /** Agent 工具调用卡片：折叠显示结果摘要，展开显示参数 / 结果 / 输出文件。 */
 @Composable
-internal fun ToolCardView(msg: UiMessage, onDownload: ((FileRef) -> Unit)? = null) {
-    val tool = msg.tool ?: return
+internal fun ToolCardView(tool: ToolCard, onDownload: ((FileRef) -> Unit)? = null) {
     var expanded by remember { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,

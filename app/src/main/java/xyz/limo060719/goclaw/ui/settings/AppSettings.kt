@@ -70,6 +70,8 @@ class AppSettingsViewModel @Inject constructor(
     fun setThemeMode(mode: String) = viewModelScope.launch { store.updateThemeMode(mode) }
     fun setTtsBackend(on: Boolean) = viewModelScope.launch { store.updateTtsBackend(on) }
     fun setShowConnectionStatus(on: Boolean) = viewModelScope.launch { store.updateShowConnectionStatus(on) }
+    fun setEnterToSend(on: Boolean) = viewModelScope.launch { store.updateEnterToSend(on) }
+    fun setDynamicColor(on: Boolean) = viewModelScope.launch { store.updateDynamicColor(on) }
 
     /** Persists the approval-notification preference and (un)schedules the background poll. */
     fun setApprovalNotifications(on: Boolean) = viewModelScope.launch {
@@ -160,6 +162,45 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    // Wallpaper colors exist only on Android 12+; below that the switch is disabled.
+                    val dynamicSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_dynamic_color), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(
+                                    if (dynamicSupported) R.string.settings_dynamic_color_desc
+                                    else R.string.settings_dynamic_color_unsupported
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = s.dynamicColor && dynamicSupported,
+                            onCheckedChange = vm::setDynamicColor,
+                            enabled = dynamicSupported,
+                        )
+                    }
+                }
+            }
+
+            // 回车发送
+            SettingCard(color = MaterialTheme.colorScheme.surfaceContainer) {
+                Row(
+                    Modifier.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_enter_send), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            stringResource(R.string.settings_enter_send_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = s.enterToSend, onCheckedChange = vm::setEnterToSend)
                 }
             }
 

@@ -39,6 +39,10 @@ data class GoClawSettings(
     val showConnectionStatus: Boolean = false,
     /** Poll the gateway in the background and post a notification for pending shell approvals. */
     val approvalNotifications: Boolean = false,
+    /** Enter sends the message instead of inserting a newline. */
+    val enterToSend: Boolean = false,
+    /** Android 12+ wallpaper-based colors instead of the Mono palette. */
+    val dynamicColor: Boolean = false,
 ) {
     val isConfigured: Boolean get() = baseUrl.isNotBlank() && apiKey.isNotBlank()
 }
@@ -64,6 +68,8 @@ class SettingsStore @Inject constructor(
         val TTS_BACKEND = booleanPreferencesKey("tts_backend")
         val SHOW_CONNECTION_STATUS = booleanPreferencesKey("show_connection_status")
         val APPROVAL_NOTIFICATIONS = booleanPreferencesKey("approval_notifications")
+        val ENTER_TO_SEND = booleanPreferencesKey("enter_to_send")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
     }
 
     val settings: Flow<GoClawSettings> = context.dataStore.data.map { p ->
@@ -84,6 +90,8 @@ class SettingsStore @Inject constructor(
             ttsBackend = p[Keys.TTS_BACKEND] ?: false,
             showConnectionStatus = p[Keys.SHOW_CONNECTION_STATUS] ?: false,
             approvalNotifications = p[Keys.APPROVAL_NOTIFICATIONS] ?: false,
+            enterToSend = p[Keys.ENTER_TO_SEND] ?: false,
+            dynamicColor = p[Keys.DYNAMIC_COLOR] ?: false,
         )
     }
 
@@ -117,6 +125,14 @@ class SettingsStore @Inject constructor(
 
     suspend fun updateApprovalNotifications(enabled: Boolean) {
         context.dataStore.edit { p -> p[Keys.APPROVAL_NOTIFICATIONS] = enabled }
+    }
+
+    suspend fun updateEnterToSend(enabled: Boolean) {
+        context.dataStore.edit { p -> p[Keys.ENTER_TO_SEND] = enabled }
+    }
+
+    suspend fun updateDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { p -> p[Keys.DYNAMIC_COLOR] = enabled }
     }
 
     suspend fun updateWechatProfile(

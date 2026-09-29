@@ -77,6 +77,7 @@ internal fun InputBar(
     isStreaming: Boolean,
     hasMessages: Boolean,
     onInputChange: (String) -> Unit,
+    enterToSend: Boolean = false,
     onSend: () -> Unit,
     onStop: () -> Unit,
     onPickImage: () -> Unit,
@@ -157,7 +158,13 @@ internal fun InputBar(
                     }
                     TextField(
                         value = input,
-                        onValueChange = onInputChange,
+                        onValueChange = { new ->
+                            // Enter-to-send: a single typed newline (soft or hardware keyboard) sends
+                            // instead. Multi-char changes (paste) still insert newlines normally.
+                            if (enterToSend && isSingleNewlineInsert(input, new)) {
+                                if (canSend && !isStreaming) onSend()
+                            } else onInputChange(new)
+                        },
                         placeholder = {
                             Text(stringResource(if (hasMessages) R.string.chat_input_continue else R.string.chat_input_hint))
                         },
@@ -190,7 +197,14 @@ internal fun InputBar(
     }
 }
 
-/** 输入栏上方的 Agent 快速切换；有消息后锁定不可切换。 */
+/** True when [new] is [old] with exactly one '\n' inserted (i.e. the Enter key, not a paste). */
+internal fun isSingleNewlineInsert(old: String, new: String): Boolean {
+    if (new.length != old.length + 1) return false
+    val i = old.indices.firstOrNull { old[it] != new[it] } ?: old.length
+    return new[i] == '\n' && new.removeRange(i, i + 1) == old
+}
+
+/** 输入栏上方的 Agent 快速切换；有消息后锁定不可切换（点击时说明原因）。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AgentSwitcher(
@@ -198,11 +212,12 @@ internal fun AgentSwitcher(
     savedAgents: List<String>,
     locked: Boolean,
     onSelect: (String) -> Unit,
+    onLockedClick: () -> Unit = {},
 ) {
     var open by remember { mutableStateOf(false) }
     Box(Modifier.padding(start = 14.dp, top = 2.dp)) {
         AssistChip(
-            onClick = { if (!locked) open = true },
+            onClick = { if (!locked) open = true else onLockedClick() },
             label = {
                 Text(agent.ifBlank { "default" }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             },

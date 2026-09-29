@@ -48,6 +48,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -62,6 +63,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,6 +111,7 @@ fun ChatScreen(
     onConversationOpened: () -> Unit = {},
     share: SharedContent? = null,
     onShareConsumed: () -> Unit = {},
+    onOpenProvider: () -> Unit = onOpenSettings,
     vm: ChatViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -126,6 +133,15 @@ fun ChatScreen(
     val savedAgents by vm.savedAgents.collectAsStateWithLifecycle()
     val showConnectionDot by vm.showConnectionStatus.collectAsStateWithLifecycle()
     val connectionOnline by vm.connectionOnline.collectAsStateWithLifecycle()
+    val searchHits by vm.searchHits.collectAsStateWithLifecycle()
+    val isConfigured by vm.isConfigured.collectAsStateWithLifecycle()
+    val enterToSend by vm.enterToSend.collectAsStateWithLifecycle()
+    val haptics = LocalHapticFeedback.current
+    val exportFailedMsg = stringResource(R.string.err_export_failed)
+    val agentLockedMsg = stringResource(R.string.agent_locked)
+    val newChatLabel = stringResource(R.string.chat_new_conversation)
+    /** Message briefly highlighted after jumping to it from search. */
+    var flashMessageId by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -192,9 +208,24 @@ fun ChatScreen(
     LaunchedEffect(state.messages.size) {
         val added = state.messages.size - lastCount
         lastCount = state.messages.size
+        // Opened from a search hit → the focus effect below positions the list instead.
+        if (state.focusMessageId != null) return@LaunchedEffect
         // Own message sent, or a whole conversation loaded → always go to the bottom.
         if (added != 1 || state.messages.lastOrNull()?.role == Role.USER) autoFollow = true
         if (autoFollow) jumpToEnd(animate = added == 1)
+    }
+    // Search hit: scroll to that message, flash it, and stop following the bottom.
+    LaunchedEffect(state.focusMessageId, state.messages) {
+        val id = state.focusMessageId ?: return@LaunchedEffect
+        val idx = state.messages.indexOfFirst { it.id == id }
+        if (idx < 0) return@LaunchedEffect
+        autoFollow = false
+        listState.scrollToItem(idx)
+        flashMessageId = id
+        vm.clearFocus() // re-keys this effect; the flash timer lives in its own effect below
+    }
+    LaunchedEffect(flashMessageId) {
+        if (flashMessageId != null) { delay(1600); flashMessageId = null }
     }
     // Streaming tokens: jump instantly instead of restarting a scroll animation per token,
     // which otherwise fights itself and drops frames.
@@ -220,14 +251,25 @@ fun ChatScreen(
             ChatDrawer(
                 conversations = conversations,
                 pendingDeletes = pendingDeletes,
+                searchHits = searchHits,
+                onSearch = vm::search,
                 onClose = { scope.launch { drawerState.close() } },
                 onNewChat = { scope.launch { drawerState.close() }; vm.newConversation() },
-                onOpenConversation = { id ->
-                    scope.launch { drawerState.close() }; vm.openConversation(id)
+                onOpenConversation = { id, focus ->
+                    scope.launch { drawerState.close() }; vm.openConversation(id, focus)
                 },
                 onDeleteConversation = vm::deleteConversation,
+                onDeleteConversations = vm::deleteConversations,
                 onUndoDelete = vm::undoDeleteConversation,
                 onRenameConversation = vm::renameConversation,
+                onSetPinned = vm::setPinned,
+                onExport = { id ->
+                    scope.launch {
+                        val uri = vm.exportMarkdown(id)
+                        if (uri != null) shareFile(context, uri, "text/markdown")
+                        else snackbar.showSnackbar(exportFailedMsg)
+                    }
+                },
                 onOpenExtras = { scope.launch { drawerState.close(); onOpenExtras() } },
                 onOpenSettings = { scope.launch { drawerState.close(); onOpenSettings() } },
             )
@@ -263,6 +305,13 @@ fun ChatScreen(
                                 savedAgents = savedAgents,
                                 locked = state.messages.isNotEmpty(),
                                 onSelect = vm::selectAgent,
+                                // Explain the lock and offer the way out instead of a dead chip.
+                                onLockedClick = {
+                                    scope.launch {
+                                        val r = snackbar.showSnackbar(agentLockedMsg, actionLabel = newChatLabel)
+                                        if (r == SnackbarResult.ActionPerformed) vm.newConversation()
+                                    }
+                                },
                             )
                         }
                         InputBar(
@@ -271,8 +320,15 @@ fun ChatScreen(
                             isStreaming = state.isStreaming,
                             hasMessages = state.messages.isNotEmpty(),
                             onInputChange = vm::onInputChange,
-                            onSend = sendWithNotifAsk,
-                            onStop = vm::stopStreaming,
+                            enterToSend = enterToSend,
+                            onSend = {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                sendWithNotifAsk()
+                            },
+                            onStop = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                vm.stopStreaming()
+                            },
                             onPickImage = {
                                 imagePicker.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -282,10 +338,18 @@ fun ChatScreen(
                             recording = state.isRecording,
                             canRecord = hasRecordPerm,
                             onRequestRecord = { recordPermission.launch(Manifest.permission.RECORD_AUDIO) },
-                            onVoiceStart = { voiceCancelArmed = false; vm.startVoiceMessage() },
+                            onVoiceStart = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                voiceCancelArmed = false
+                                vm.startVoiceMessage()
+                            },
                             onVoiceEnd = vm::finishVoiceMessage,
                             onVoiceCancel = vm::cancelVoiceMessage,
-                            onVoiceCancelArmed = { voiceCancelArmed = it },
+                            onVoiceCancelArmed = {
+                                // A tick when crossing the cancel threshold, either way.
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                voiceCancelArmed = it
+                            },
                         )
                     }
                 },
@@ -302,6 +366,8 @@ fun ChatScreen(
                     if (state.messages.isEmpty() && !state.isStreaming) {
                         EmptyState(
                             modifier = Modifier.weight(1f),
+                            configured = isConfigured,
+                            onConfigure = onOpenProvider,
                             onSuggestion = { prompt -> vm.onInputChange(prompt) },
                         )
                     } else {
@@ -326,7 +392,7 @@ fun ChatScreen(
                                     wechat = wechat,
                                     profile = profile,
                                     selectionMode = state.selectionMode,
-                                    selected = msg.id in state.selectedIds,
+                                    selected = msg.id in state.selectedIds || msg.id == flashMessageId,
                                     onTap = { vm.toggleSelected(msg.id) },
                                     onDoubleTap = if (isTextMessage) ({ detailMessage = msg }) else null,
                                     onSelectText = if (isTextMessage) ({ detailMessage = msg }) else null,
@@ -512,11 +578,20 @@ private fun ConnectionDot(online: Boolean?, modifier: Modifier = Modifier) {
         false -> MaterialTheme.colorScheme.error
         null -> MaterialTheme.colorScheme.outline
     }
+    // Color alone isn't enough (color-blind users, screen readers) — announce the state too.
+    val label = stringResource(
+        when (online) {
+            true -> R.string.conn_online
+            false -> R.string.conn_offline
+            null -> R.string.conn_checking
+        }
+    )
     Box(
         modifier
             .size(10.dp)
             .clip(CircleShape)
             .background(color)
+            .semantics { contentDescription = label }
     )
 }
 
@@ -525,6 +600,15 @@ internal fun shareText(context: Context, text: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_share_to)))
+}
+
+internal fun shareFile(context: Context, uri: android.net.Uri, mime: String) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = mime
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_share_to)))
 }

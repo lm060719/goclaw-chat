@@ -27,6 +27,8 @@ data class ConversationMeta(
     val title: String,
     val updatedAt: Long,
     val agentKey: String? = null,
+    /** Pinned to the top of the drawer. */
+    val pinned: Boolean = false,
 )
 
 /** A full persisted conversation: UI messages for display + wire history to resume. */
@@ -41,6 +43,8 @@ data class Conversation(
     val serverSessionId: String? = null,
     /** Agent this conversation is bound to (its server session uses this agent key). */
     val agentKey: String? = null,
+    /** Mirrors [ConversationMeta.pinned]; the index is the source of truth (see [ConversationStore.save]). */
+    val pinned: Boolean = false,
 )
 
 /**
@@ -113,11 +117,16 @@ class ConversationStore @Inject constructor(
         else json.decodeFromString(Conversation.serializer(), f.readText())
     }.getOrNull()
 
-    fun save(conversation: Conversation) {
+    fun save(conv: Conversation) {
+        // Callers (the chat VM saves after every streamed block) don't track pinning — keep
+        // whatever the index says, so a save can never silently un-pin a conversation.
+        val conversation = _conversations.value.firstOrNull { it.id == conv.id }
+            ?.let { conv.copy(pinned = it.pinned) } ?: conv
         pendingWrites[conversation.id] = conversation
         // Index/meta update is cheap — do it now so the drawer reflects the change instantly.
         val meta = ConversationMeta(
             conversation.id, conversation.title, conversation.updatedAt, conversation.agentKey,
+            conversation.pinned,
         )
         _conversations.value = (_conversations.value.filterNot { it.id == meta.id } + meta)
             .sortedByDescending { it.updatedAt }
@@ -140,6 +149,14 @@ class ConversationStore @Inject constructor(
             .map { if (it.id == id) it.copy(title = clean) else it }
         ioScope.launch {
             load(id)?.let { save(it.copy(title = clean)) } ?: persistIndex()
+        }
+    }
+
+    fun setPinned(id: String, pinned: Boolean) {
+        _conversations.value = _conversations.value
+            .map { if (it.id == id) it.copy(pinned = pinned) else it }
+        ioScope.launch {
+            load(id)?.let { save(it.copy(pinned = pinned)) } ?: persistIndex()
         }
     }
 

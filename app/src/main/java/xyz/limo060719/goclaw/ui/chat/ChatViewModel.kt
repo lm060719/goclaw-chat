@@ -61,6 +61,8 @@ data class ChatUiState(
     val turnFailed: Boolean = false,
     val selectionMode: Boolean = false,
     val selectedIds: Set<String> = emptySet(),
+    /** A message to scroll to and flash once (set when opening a conversation from search). */
+    val focusMessageId: String? = null,
 )
 
 @HiltViewModel
@@ -100,6 +102,21 @@ class ChatViewModel @Inject constructor(
     val savedAgents: StateFlow<List<String>> = settingsStore.settings
         .map { it.savedAgents }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Gateway URL + API key present; drives the first-run setup card. Starts true to avoid a flash. */
+    val isConfigured: StateFlow<Boolean> = settingsStore.settings
+        .map { it.isConfigured }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    /** Enter key sends instead of inserting a newline. */
+    val enterToSend: StateFlow<Boolean> = settingsStore.settings
+        .map { it.enterToSend }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** Drawer content-search results; null = not searching. */
+    private val _searchHits = MutableStateFlow<List<SearchHit>?>(null)
+    val searchHits: StateFlow<List<SearchHit>?> = _searchHits.asStateFlow()
+    private var searchJob: Job? = null
 
     /** Whether to show the connection-status dot in the chat top bar. */
     val showConnectionStatus: StateFlow<Boolean> = settingsStore.settings
@@ -382,7 +399,7 @@ class ChatViewModel @Inject constructor(
         )
     }
 
-    fun openConversation(id: String) {
+    fun openConversation(id: String, focusMessageId: String? = null) {
         viewModelScope.launch {
             // File read + JSON decode off the main thread — big conversations were janking the tap.
             val conv = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -400,6 +417,7 @@ class ChatViewModel @Inject constructor(
                 input = draftFor(conv.id),
                 agent = conv.agentKey ?: activeAgent,
                 ttsEnabled = _state.value.ttsEnabled,
+                focusMessageId = focusMessageId,
             )
             // If the last turn is unanswered/cut off, the server ran it anyway — recover the reply.
             recoverReply()
@@ -491,6 +509,51 @@ class ChatViewModel @Inject constructor(
         conversationStore.delete(id)
         drafts.remove(id)
         _pendingDeletes.value = _pendingDeletes.value - id
+    }
+
+    fun deleteConversations(ids: Collection<String>) = ids.forEach(::deleteConversation)
+
+    fun setPinned(id: String, pinned: Boolean) = conversationStore.setPinned(id, pinned)
+
+    fun clearFocus() { _state.value = _state.value.copy(focusMessageId = null) }
+
+    /**
+     * Drawer search over titles AND message text. Reads every conversation file on IO, so it's
+     * debounced by the caller and restarted on each keystroke; blank query = not searching.
+     */
+    fun search(query: String) {
+        searchJob?.cancel()
+        if (query.isBlank()) { _searchHits.value = null; return }
+        val metas = conversationStore.conversations.value
+        searchJob = viewModelScope.launch {
+            val hits = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                metas.mapNotNull { meta ->
+                    if (!isActive) return@withContext emptyList()
+                    if (meta.title.contains(query.trim(), ignoreCase = true)) SearchHit(meta.id, null, null)
+                    else conversationStore.load(meta.id)?.let { searchConversation(it, query) }
+                }
+            }
+            _searchHits.value = hits
+        }
+    }
+
+    /** Writes the conversation as Markdown to the cache and returns a shareable content uri. */
+    suspend fun exportMarkdown(id: String): Uri? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val conv = conversationStore.load(id) ?: return@withContext null
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+        val md = conversationToMarkdown(
+            conv,
+            userLabel = context.getString(R.string.export_user),
+            assistantLabel = context.getString(R.string.export_assistant),
+            imageLabel = context.getString(R.string.export_image),
+            formatTime = { fmt.format(java.util.Date(it)) },
+        )
+        runCatching {
+            val dir = java.io.File(context.cacheDir, "exports").apply { mkdirs() }
+            val safe = conv.title.ifBlank { "goclaw" }.replace(Regex("""[\\/:*?"<>|\s]+"""), "_").take(40)
+            val file = java.io.File(dir, "$safe.md").apply { writeText(md) }
+            androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        }.getOrNull()
     }
 
     fun renameConversation(id: String, title: String) {

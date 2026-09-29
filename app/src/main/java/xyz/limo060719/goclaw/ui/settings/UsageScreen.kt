@@ -56,7 +56,11 @@ fun UsageScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        RefreshableBox(
+            refreshing = state.loading && state.usage != null,
+            onRefresh = vm::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             val u = state.usage
             when {
                 state.loading && u == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))

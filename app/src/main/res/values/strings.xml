@@ -418,4 +418,40 @@
     <string name="notif_reply_generic">The reply is ready — tap to view</string>
     <string name="settings_approval_notif">Approval notifications</string>
     <string name="settings_approval_notif_desc">Check the gateway in the background (~every 15 min) and notify you of pending shell approvals</string>
+
+    <!-- Drawer: groups / actions / search -->
+    <string name="common_clear">Clear</string>
+    <string name="drawer_select_all">Select all</string>
+    <string name="drawer_search_results">Results</string>
+    <string name="drawer_group_pinned">Pinned</string>
+    <string name="drawer_group_today">Today</string>
+    <string name="drawer_group_yesterday">Yesterday</string>
+    <string name="drawer_group_week">Previous 7 days</string>
+    <string name="drawer_group_older">Older</string>
+    <string name="drawer_rename">Rename</string>
+    <string name="drawer_pin">Pin</string>
+    <string name="drawer_unpin">Unpin</string>
+    <string name="drawer_export">Export as Markdown</string>
+    <string name="export_user">Me</string>
+    <string name="export_assistant">AI</string>
+    <string name="export_image">Image</string>
+    <string name="err_export_failed">Export failed</string>
+
+    <!-- First run / agent lock -->
+    <string name="setup_title">No gateway connected yet</string>
+    <string name="setup_desc">Add your GoClaw gateway URL and API key to start chatting.</string>
+    <string name="setup_action">Set up</string>
+    <string name="agent_locked">Can\'t switch agents in a chat that has started</string>
+
+    <!-- Connection dot (accessibility) -->
+    <string name="conn_online">Gateway online</string>
+    <string name="conn_offline">Gateway offline</string>
+    <string name="conn_checking">Checking gateway connection</string>
+
+    <!-- Settings: input / colors -->
+    <string name="settings_enter_send">Enter to send</string>
+    <string name="settings_enter_send_desc">The Enter key sends the message; paste or turn this off for new lines</string>
+    <string name="settings_dynamic_color">Dynamic color</string>
+    <string name="settings_dynamic_color_desc">Use wallpaper colors; off keeps the black &amp; white theme</string>
+    <string name="settings_dynamic_color_unsupported">Requires Android 12 or later</string>
 </resources>

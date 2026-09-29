@@ -91,16 +91,17 @@ fun ApiKeysScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        RefreshableBox(
+            refreshing = state.loading && state.keys.isNotEmpty(),
+            onRefresh = vm::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             when {
                 state.loading && state.keys.isEmpty() ->
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
 
                 state.keys.isEmpty() ->
-                    Column(
-                        Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
+                    ScrollableCenter {
                         Icon(
                             Icons.Filled.Key,
                             contentDescription = null,

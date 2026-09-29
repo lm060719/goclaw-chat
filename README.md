@@ -29,6 +29,9 @@ Package: `xyz.limo060719.goclaw` · minSdk 26 · target/compileSdk 35 · modules
 - Markdown: grayscale-highlighted code blocks with copy, horizontally scrollable tables, nested and
   task lists, images, auto-linked URLs; streaming renders incrementally per paragraph so long
   replies stay smooth. Long-press → "Select text" to copy just part of a message.
+- History is grouped (Pinned / Today / Yesterday / Previous 7 days / Older); long-press a chat to
+  rename, pin, export as Markdown, or multi-select for batch delete. Search matches titles *and*
+  message text, and tapping a hit jumps to that message.
 - Switch away during a long reply and you get a notification when it's done — tap to open that chat.
 - Share text, images or files from any app → "GoClaw Chat" to start a new chat with them.
 - Long conversations got you? You can compact server-side history from **Session Management**
@@ -73,7 +76,9 @@ Package: `xyz.limo060719.goclaw` · minSdk 26 · target/compileSdk 35 · modules
 - **Session management**: list server sessions, compact/reset/delete them.
 
 **Look & feel**
-- Light/dark/system theme.
+- Light/dark/system theme; on Android 12+ an optional "Dynamic color" follows your wallpaper.
+- Optional Enter-to-send; on first launch without a gateway, the chat screen shows a "Set up" card.
+- Admin screens (sessions, approvals, traces, usage, …) support pull-to-refresh.
 - Optional WeChat-style UI (custom avatars + names for you and the assistant).
 
 ## First run

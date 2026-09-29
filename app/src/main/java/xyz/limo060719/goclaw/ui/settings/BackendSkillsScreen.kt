@@ -58,16 +58,17 @@ fun BackendSkillsScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        RefreshableBox(
+            refreshing = state.loading && state.skills.isNotEmpty(),
+            onRefresh = vm::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             when {
                 state.loading && state.skills.isEmpty() ->
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
 
                 state.skills.isEmpty() ->
-                    Column(
-                        Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
+                    ScrollableCenter {
                         Text(stringResource(R.string.backend_skills_empty), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(4.dp))
                         Text(

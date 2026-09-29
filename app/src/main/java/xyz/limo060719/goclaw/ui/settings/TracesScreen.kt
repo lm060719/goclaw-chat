@@ -62,13 +62,17 @@ fun TracesScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        RefreshableBox(
+            refreshing = state.loading && state.traces.isNotEmpty(),
+            onRefresh = vm::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             when {
                 state.loading && state.traces.isEmpty() ->
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
 
                 state.traces.isEmpty() ->
-                    Text(stringResource(R.string.traces_empty), Modifier.align(Alignment.Center), style = MaterialTheme.typography.bodyMedium)
+                    ScrollableCenter { Text(stringResource(R.string.traces_empty), style = MaterialTheme.typography.bodyMedium) }
 
                 else -> LazyColumn(
                     Modifier.fillMaxSize(),

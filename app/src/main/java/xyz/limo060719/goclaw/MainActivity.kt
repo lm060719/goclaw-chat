@@ -124,7 +124,7 @@ class MainActivity : ComponentActivity() {
                 controller.isAppearanceLightStatusBars = !dark
                 controller.isAppearanceLightNavigationBars = !dark
             }
-            GoClawTheme(darkTheme = dark) {
+            GoClawTheme(darkTheme = dark, dynamicColor = settings.dynamicColor) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val nav = rememberNavController()
                     // A notification tap (or any deep link) drops a route here; navigate once.
@@ -147,6 +147,7 @@ class MainActivity : ComponentActivity() {
                                 onConversationOpened = { pendingConversation.value = null },
                                 share = share,
                                 onShareConsumed = { pendingShare.value = null },
+                                onOpenProvider = { nav.navigate("ai_provider") },
                             )
                         }
                         composable("extras") {

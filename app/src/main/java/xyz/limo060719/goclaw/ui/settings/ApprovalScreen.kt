@@ -51,16 +51,17 @@ fun ApprovalScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        RefreshableBox(
+            refreshing = state.loading && state.approvals.isNotEmpty(),
+            onRefresh = vm::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             when {
                 state.loading && state.approvals.isEmpty() ->
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
 
                 state.approvals.isEmpty() ->
-                    Column(
-                        Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
+                    ScrollableCenter {
                         Icon(
                             Icons.Filled.Terminal,
                             contentDescription = null,

@@ -418,4 +418,40 @@
     <string name="notif_reply_generic">回复已生成，点击查看</string>
     <string name="settings_approval_notif">审批通知</string>
     <string name="settings_approval_notif_desc">在后台定期(约每 15 分钟)检查网关,有待审批的 shell 命令时通知你</string>
+
+    <!-- Drawer: groups / actions / search -->
+    <string name="common_clear">清除</string>
+    <string name="drawer_select_all">全选</string>
+    <string name="drawer_search_results">搜索结果</string>
+    <string name="drawer_group_pinned">置顶</string>
+    <string name="drawer_group_today">今天</string>
+    <string name="drawer_group_yesterday">昨天</string>
+    <string name="drawer_group_week">近 7 天</string>
+    <string name="drawer_group_older">更早</string>
+    <string name="drawer_rename">重命名</string>
+    <string name="drawer_pin">置顶</string>
+    <string name="drawer_unpin">取消置顶</string>
+    <string name="drawer_export">导出 Markdown</string>
+    <string name="export_user">我</string>
+    <string name="export_assistant">AI</string>
+    <string name="export_image">图片</string>
+    <string name="err_export_failed">导出失败</string>
+
+    <!-- First run / agent lock -->
+    <string name="setup_title">还没有连接网关</string>
+    <string name="setup_desc">填写 GoClaw 网关地址和 API 密钥后才能开始聊天。</string>
+    <string name="setup_action">去配置</string>
+    <string name="agent_locked">已开始的对话不能切换 Agent</string>
+
+    <!-- Connection dot (accessibility) -->
+    <string name="conn_online">网关在线</string>
+    <string name="conn_offline">网关离线</string>
+    <string name="conn_checking">正在检测网关连接</string>
+
+    <!-- Settings: input / colors -->
+    <string name="settings_enter_send">回车发送</string>
+    <string name="settings_enter_send_desc">回车键直接发送消息；需要换行时可粘贴或关闭此项</string>
+    <string name="settings_dynamic_color">动态取色</string>
+    <string name="settings_dynamic_color_desc">跟随壁纸配色；关闭则使用黑白单色主题</string>
+    <string name="settings_dynamic_color_unsupported">需要 Android 12 及以上</string>
 </resources>

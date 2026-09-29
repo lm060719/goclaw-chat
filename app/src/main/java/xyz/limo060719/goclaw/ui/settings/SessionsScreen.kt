@@ -49,16 +49,17 @@ fun SessionsScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        RefreshableBox(
+            refreshing = state.loading && state.sessions.isNotEmpty(),
+            onRefresh = vm::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             when {
                 state.loading && state.sessions.isEmpty() ->
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
 
                 state.sessions.isEmpty() ->
-                    Column(
-                        Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
+                    ScrollableCenter {
                         Icon(
                             Icons.Outlined.ChatBubbleOutline,
                             contentDescription = null,

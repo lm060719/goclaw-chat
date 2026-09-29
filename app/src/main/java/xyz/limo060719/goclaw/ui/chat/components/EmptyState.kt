@@ -11,16 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -45,7 +48,12 @@ private data class Suggestion(
 
 /** 无消息时的欢迎页 + 提示词建议卡片。 */
 @Composable
-internal fun EmptyState(modifier: Modifier = Modifier, onSuggestion: (String) -> Unit) {
+internal fun EmptyState(
+    modifier: Modifier = Modifier,
+    configured: Boolean = true,
+    onConfigure: () -> Unit = {},
+    onSuggestion: (String) -> Unit,
+) {
     val suggestions = listOf(
         Suggestion(stringResource(R.string.empty_sugg_copywriting_title), stringResource(R.string.empty_sugg_copywriting_desc), Icons.Filled.EditNote, stringResource(R.string.empty_sugg_copywriting_prompt)),
         Suggestion(stringResource(R.string.empty_sugg_summary_title), stringResource(R.string.empty_sugg_summary_desc), Icons.Filled.Description, stringResource(R.string.empty_sugg_summary_prompt)),
@@ -84,6 +92,11 @@ internal fun EmptyState(modifier: Modifier = Modifier, onSuggestion: (String) ->
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(28.dp))
+        // First run: nothing works until a gateway is set, so say so up front with a way there.
+        if (!configured) {
+            SetupCard(onConfigure)
+            Spacer(Modifier.height(16.dp))
+        }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             suggestions.chunked(2).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
@@ -91,6 +104,34 @@ internal fun EmptyState(modifier: Modifier = Modifier, onSuggestion: (String) ->
                         SuggestionCard(s, Modifier.weight(1f)) { onSuggestion(s.prompt) }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetupCard(onConfigure: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Cloud, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.setup_title), style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.setup_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = onConfigure, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.setup_action))
             }
         }
     }

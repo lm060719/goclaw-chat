@@ -2,7 +2,6 @@ package xyz.limo060719.goclaw.ui.chat.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,18 +27,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -48,130 +55,54 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import xyz.limo060719.goclaw.R
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
+import xyz.limo060719.goclaw.R
 import xyz.limo060719.goclaw.ui.theme.CodeFontFamily
 
 /**
- * 轻量 Markdown 渲染：段落 / 标题 / 列表 / 引用 / 分隔线 / 行内样式 / 代码块 / 表格。
- * 消息正文的唯一入口是 [MessageText]。
+ * 轻量 Markdown 渲染：段落 / 标题 / 列表（嵌套、任务）/ 引用 / 分隔线 / 图片 / 行内样式 /
+ * 代码块（高亮）/ 表格（横向滚动）。消息正文的唯一入口是 [MessageText]；解析在 MarkdownParse.kt。
  */
 
-/* ---------- 顶层切分：文本 / 代码块 / 表格 ---------- */
-
-private sealed interface MsgSegment
-private data class TextSegment(val text: String) : MsgSegment
-private data class CodeSegment(val code: String, val lang: String) : MsgSegment
-private data class TableSegment(val header: List<String>, val rows: List<List<String>>) : MsgSegment
-
-private val codeFenceRegex = Regex("```([a-zA-Z0-9+#._-]*)\\r?\\n?([\\s\\S]*?)```")
-
-/** A Markdown table separator row, e.g. `|---|:--:|---:|` — only pipes, dashes, colons, spaces. */
-private fun isTableSeparator(line: String): Boolean {
-    val t = line.trim()
-    return t.contains('-') && t.contains('|') && t.all { it == '|' || it == '-' || it == ':' || it == ' ' }
+/** 消息正文入口：按块渲染，每块独立 remember（流式时只重算最后一块）。 */
+@Composable
+internal fun MessageText(text: String) {
+    val chunks = remember(text) { splitChunks(text) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        chunks.forEachIndexed { i, chunk -> key(i) { MarkdownChunk(chunk) } }
+    }
 }
 
-private fun parseSegments(text: String): List<MsgSegment> {
-    val out = mutableListOf<MsgSegment>()
-    var last = 0
-    for (m in codeFenceRegex.findAll(text)) {
-        if (m.range.first > last) {
-            text.substring(last, m.range.first).trim('\n', '\r')
-                .takeIf { it.isNotBlank() }?.let { splitTables(it, out) }
-        }
-        out.add(CodeSegment(m.groupValues[2].trimEnd('\n', '\r'), m.groupValues[1].trim()))
-        last = m.range.last + 1
-    }
-    if (last < text.length) {
-        text.substring(last).trim('\n', '\r').takeIf { it.isNotBlank() }?.let { splitTables(it, out) }
-    }
-    if (out.isEmpty()) out.add(TextSegment(text))
-    return out
-}
-
-/** Split a (code-free) block into plain-text and Markdown-table segments. */
-private fun splitTables(block: String, out: MutableList<MsgSegment>) {
-    val lines = block.split('\n')
-    val buf = StringBuilder()
-    fun flushText() {
-        buf.toString().trim('\n', '\r').takeIf { it.isNotBlank() }?.let { out.add(TextSegment(it)) }
-        buf.setLength(0)
-    }
-    var i = 0
-    while (i < lines.size) {
-        val line = lines[i]
-        val next = lines.getOrNull(i + 1)
-        // A header row followed by a `---` separator row starts a table.
-        if (line.contains('|') && next != null && isTableSeparator(next)) {
-            flushText()
-            val header = splitCells(line)
-            val rows = mutableListOf<List<String>>()
-            var j = i + 2
-            while (j < lines.size && lines[j].contains('|') && lines[j].isNotBlank()) {
-                rows.add(splitCells(lines[j])); j++
+/** 一块正文。参数不变时被 Compose 跳过，所以已完成的块在流式输出期间不会重组。 */
+@Composable
+private fun MarkdownChunk(chunk: String) {
+    val segments = remember(chunk) { parseChunk(chunk) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        segments.forEach { seg ->
+            when (seg) {
+                is TextSegment -> MarkdownText(seg.text)
+                is CodeSegment -> CodeBlock(seg.code, seg.lang)
+                is TableSegment -> TableBlock(seg.header, seg.rows)
             }
-            out.add(TableSegment(header, rows))
-            i = j
-        } else {
-            buf.append(line).append('\n'); i++
         }
     }
-    flushText()
 }
 
-private fun splitCells(row: String): List<String> {
-    var s = row.trim()
-    if (s.startsWith("|")) s = s.substring(1)
-    if (s.endsWith("|")) s = s.substring(0, s.length - 1)
-    return s.split('|').map { it.trim() }
-}
+/* ---------- 行内样式 ---------- */
 
-/* ---------- 块级解析：标题 / 列表 / 引用 / 段落 ---------- */
+private val autoLinkRegex = Regex("""https?://[^\s<>()\[\]{}"'`，。！？、；：）】」]+""")
 
-private sealed interface MdBlock
-private data class MdHeading(val level: Int, val text: String) : MdBlock
-private data class MdBullet(val text: String, val marker: String) : MdBlock
-private data class MdQuote(val text: String) : MdBlock
-private data class MdParagraph(val text: String) : MdBlock
-private object MdDivider : MdBlock
+private fun Char.isAsciiLetterOrDigit() = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'
 
-private val orderedItemRegex = Regex("^\\d+\\. ")
-private val dividerRegex = Regex("^(-{3,}|\\*{3,}|_{3,})$")
-
-private fun parseBlocks(text: String): List<MdBlock> {
-    val blocks = mutableListOf<MdBlock>()
-    val para = StringBuilder()
-    fun flush() {
-        para.toString().trim().takeIf { it.isNotBlank() }?.let { blocks.add(MdParagraph(it)) }
-        para.setLength(0)
-    }
-    fun appendPara(s: String) { if (para.isNotEmpty()) para.append(' '); para.append(s.trim()) }
-    for (raw in text.split('\n')) {
-        val t = raw.trim()
-        val hashes = t.takeWhile { it == '#' }.length
-        when {
-            t.isBlank() -> flush()
-            dividerRegex.matches(t) -> { flush(); blocks.add(MdDivider) }
-            hashes in 1..6 && t.getOrNull(hashes) == ' ' -> {
-                flush(); blocks.add(MdHeading(hashes.coerceAtMost(4), t.drop(hashes).trim()))
-            }
-            t.startsWith("> ") -> { flush(); blocks.add(MdQuote(t.removePrefix("> ").trim())) }
-            t.startsWith("- ") || t.startsWith("* ") || t.startsWith("+ ") ->
-                { flush(); blocks.add(MdBullet(t.drop(2).trim(), "•")) }
-            orderedItemRegex.containsMatchIn(t) ->
-                { flush(); blocks.add(MdBullet(t.substringAfter(' ').trim(), t.takeWhile { it != ' ' })) }
-            else -> appendPara(raw)
-        }
-    }
-    flush()
-    return blocks
-}
-
-/** Append text with inline Markdown (`**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, links). */
+/**
+ * Append text with inline Markdown (`**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, links,
+ * inline images as links, bare URLs auto-linked).
+ */
 private fun AnnotatedString.Builder.appendInline(text: String, codeBg: Color, linkColor: Color) {
+    val linkStyle = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))
     var i = 0
     while (i < text.length) {
         when {
@@ -207,44 +138,40 @@ private fun AnnotatedString.Builder.appendInline(text: String, codeBg: Color, li
                     i = end + 1
                 } else { append(text[i]); i++ }
             }
-            text[i] == '[' -> {
-                val close = text.indexOf(']', i + 1)
-                if (close >= 0 && text.getOrNull(close + 1) == '(') {
-                    val urlEnd = text.indexOf(')', close + 2)
-                    if (urlEnd >= 0) {
-                        val url = text.substring(close + 2, urlEnd).trim()
-                        val linkStyle = TextLinkStyles(
-                            SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
-                        )
-                        // LinkAnnotation makes the span clickable; Text opens it via the platform UriHandler.
-                        withLink(LinkAnnotation.Url(url, linkStyle)) {
-                            appendInline(text.substring(i + 1, close), codeBg, linkColor)
-                        }
-                        i = urlEnd + 1
-                    } else { append(text[i]); i++ }
+            text[i] == '[' || (text[i] == '!' && text.getOrNull(i + 1) == '[') -> {
+                val isImage = text[i] == '!'
+                val open = if (isImage) i + 1 else i
+                val close = text.indexOf(']', open + 1)
+                val urlEnd = if (close >= 0 && text.getOrNull(close + 1) == '(') text.indexOf(')', close + 2) else -1
+                if (urlEnd >= 0) {
+                    val url = text.substring(close + 2, urlEnd).trim().substringBefore(' ')
+                    val label = text.substring(open + 1, close)
+                    // LinkAnnotation makes the span clickable; Text opens it via the platform UriHandler.
+                    withLink(LinkAnnotation.Url(url, linkStyle)) {
+                        if (isImage) append("🖼 ${label.ifBlank { url }}")
+                        else appendInline(label, codeBg, linkColor)
+                    }
+                    i = urlEnd + 1
                 } else { append(text[i]); i++ }
             }
-            else -> { append(text[i]); i++ }
-        }
-    }
-}
-
-/* ---------- 渲染 ---------- */
-
-/** 消息正文入口：按 文本 / 代码 / 表格 分段渲染。 */
-@Composable
-internal fun MessageText(text: String) {
-    val segments = remember(text) { parseSegments(text) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        segments.forEach { seg ->
-            when (seg) {
-                is TextSegment -> MarkdownText(seg.text)
-                is CodeSegment -> CodeBlock(seg.code, seg.lang)
-                is TableSegment -> TableBlock(seg.header, seg.rows)
+            else -> {
+                // Bare URL → link. Only at a word start (ASCII-wise: "看https://…" still links).
+                val prev = text.getOrNull(i - 1)
+                val url = if (text[i] == 'h' && (prev == null || !(prev.isAsciiLetterOrDigit()))) {
+                    autoLinkRegex.matchAt(text, i)?.value?.trimEnd('.', ',', ';', ':', '!', '?')
+                } else null
+                if (url != null) {
+                    withLink(LinkAnnotation.Url(url, linkStyle)) { append(url) }
+                    i += url.length
+                } else { append(text[i]); i++ }
             }
         }
     }
 }
+
+/* ---------- 块级渲染 ---------- */
+
+private val bulletMarkers = listOf("•", "◦", "▪", "▫")
 
 @Composable
 private fun MarkdownText(text: String) {
@@ -266,9 +193,25 @@ private fun MarkdownText(text: String) {
                     fontWeight = FontWeight.Bold,
                 )
                 is MdParagraph -> Text(inline(b.text), style = MaterialTheme.typography.bodyLarge)
-                is MdBullet -> Row(verticalAlignment = Alignment.Top) {
-                    Text("${b.marker} ", style = MaterialTheme.typography.bodyLarge)
-                    Text(inline(b.text), style = MaterialTheme.typography.bodyLarge)
+                is MdListItem -> Row(
+                    Modifier.padding(start = (b.depth * 16).dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    val marker = when {
+                        b.checked == true -> "☑"
+                        b.checked == false -> "☐"
+                        b.marker.first().isDigit() -> b.marker
+                        else -> bulletMarkers[b.depth.coerceIn(0, bulletMarkers.lastIndex)]
+                    }
+                    Text("$marker ", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        inline(b.text),
+                        style = MaterialTheme.typography.bodyLarge,
+                        // Done tasks read as done: struck through and dimmed.
+                        textDecoration = if (b.checked == true) TextDecoration.LineThrough else null,
+                        color = if (b.checked == true) MaterialTheme.colorScheme.onSurfaceVariant
+                        else Color.Unspecified,
+                    )
                 }
                 is MdQuote -> Row(Modifier.height(IntrinsicSize.Min)) {
                     Box(
@@ -282,60 +225,130 @@ private fun MarkdownText(text: String) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                is MdImage -> MarkdownImage(b.alt, b.url)
                 MdDivider -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
         }
     }
 }
 
+/** Block image. Only absolute http(s) URLs load (gateway-relative paths need auth) → else a link. */
+@Composable
+private fun MarkdownImage(alt: String, url: String) {
+    if (url.startsWith("http://", true) || url.startsWith("https://", true)) {
+        AsyncImage(
+            model = url,
+            contentDescription = alt.ifBlank { null },
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).clip(MaterialTheme.shapes.small),
+        )
+    } else {
+        val linkColor = MaterialTheme.colorScheme.onSurface
+        Text(
+            buildAnnotatedString { appendInline("![$alt]($url)", Color.Transparent, linkColor) },
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+}
+
+/* ---------- 表格：按内容定列宽，超宽横向滚动 ---------- */
+
+/** Grid line positions captured during layout, read when drawing the borders. */
+private class TableGrid {
+    var colX = IntArray(0)
+    var rowY = IntArray(0)
+}
+
 @Composable
 private fun TableBlock(header: List<String>, rows: List<List<String>>) {
     val cols = maxOf(header.size, rows.maxOfOrNull { it.size } ?: 0).coerceAtLeast(1)
+    val allRows = listOf(header) + rows
     val border = MaterialTheme.colorScheme.outline
+    val headerBg = MaterialTheme.colorScheme.surfaceContainerHigh
     val codeBg = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
     val linkColor = MaterialTheme.colorScheme.onSurface
+    val density = LocalDensity.current
+    val maxColPx = with(density) { 220.dp.roundToPx() }
+    val minColPx = with(density) { 36.dp.roundToPx() }
+    val lineW = with(density) { 1.dp.toPx() }
+    val grid = remember { TableGrid() }
 
-    @Composable
-    fun RowOfCells(cells: List<String>, isHeader: Boolean) {
-        Row(
-            Modifier
-                .height(IntrinsicSize.Min)
-                .background(
-                    if (isHeader) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent
-                ),
-        ) {
-            for (c in 0 until cols) {
-                if (c > 0) VerticalDivider(color = border)
-                Box(Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 6.dp)) {
-                    Text(
-                        buildAnnotatedString { appendInline(cells.getOrNull(c).orEmpty(), codeBg, linkColor) },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = if (isHeader) FontWeight.SemiBold else FontWeight.Normal,
-                    )
+    Box(Modifier.horizontalScroll(rememberScrollState())) {
+        Layout(
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.small)
+                .drawBehind {
+                    if (grid.rowY.size > 1) {
+                        drawRect(headerBg, size = Size(size.width, grid.rowY[1].toFloat()))
+                    }
+                    for (x in grid.colX.drop(1).dropLast(1)) {
+                        drawLine(border, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), lineW)
+                    }
+                    for (y in grid.rowY.drop(1).dropLast(1)) {
+                        drawLine(border, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), lineW)
+                    }
                 }
+                .border(1.dp, border, MaterialTheme.shapes.small),
+            content = {
+                allRows.forEachIndexed { r, row ->
+                    for (c in 0 until cols) {
+                        Box(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                            Text(
+                                buildAnnotatedString { appendInline(row.getOrNull(c).orEmpty(), codeBg, linkColor) },
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = if (r == 0) FontWeight.SemiBold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            },
+        ) { measurables, _ ->
+            // Column width = widest cell's natural width, clamped; long cells wrap within it.
+            val colW = IntArray(cols) { minColPx }
+            measurables.forEachIndexed { i, m ->
+                val c = i % cols
+                colW[c] = maxOf(colW[c], m.maxIntrinsicWidth(Constraints.Infinity).coerceAtMost(maxColPx))
             }
-        }
-    }
-
-    Column(
-        Modifier
-            .clip(MaterialTheme.shapes.small)
-            .border(1.dp, border, MaterialTheme.shapes.small),
-    ) {
-        RowOfCells(header, isHeader = true)
-        rows.forEach { row ->
-            HorizontalDivider(color = border)
-            RowOfCells(row, isHeader = false)
+            val placeables = measurables.mapIndexed { i, m ->
+                m.measure(Constraints.fixedWidth(colW[i % cols]))
+            }
+            val rowCount = allRows.size
+            val rowH = IntArray(rowCount) { r -> (0 until cols).maxOf { c -> placeables[r * cols + c].height } }
+            grid.colX = IntArray(cols + 1).also { for (c in 0 until cols) it[c + 1] = it[c] + colW[c] }
+            grid.rowY = IntArray(rowCount + 1).also { for (r in 0 until rowCount) it[r + 1] = it[r] + rowH[r] }
+            layout(grid.colX[cols], grid.rowY[rowCount]) {
+                placeables.forEachIndexed { i, p -> p.place(grid.colX[i % cols], grid.rowY[i / cols]) }
+            }
         }
     }
 }
 
-/** 代码块：灰阶底 + 发丝边框 + 一键复制。 */
+/* ---------- 代码块：灰阶高亮 + 发丝边框 + 一键复制 ---------- */
+
 @Composable
 internal fun CodeBlock(code: String, lang: String) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) { if (copied) { delay(1500); copied = false } }
+
+    // Mono design language: emphasis through weight / tone, not hue.
+    val base = MaterialTheme.colorScheme.onSurface
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val highlighted = remember(code, lang, base, muted) {
+        val tokens = highlightCode(code, lang)
+        buildAnnotatedString {
+            append(code)
+            tokens.forEach { t ->
+                val style = when (t.kind) {
+                    TokenKind.KEYWORD -> SpanStyle(fontWeight = FontWeight.Bold, color = base)
+                    TokenKind.STRING -> SpanStyle(color = base.copy(alpha = 0.7f))
+                    TokenKind.NUMBER -> SpanStyle(color = base.copy(alpha = 0.7f))
+                    TokenKind.COMMENT -> SpanStyle(color = muted, fontStyle = FontStyle.Italic)
+                }
+                addStyle(style, t.start, t.end)
+            }
+        }
+    }
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -373,10 +386,10 @@ internal fun CodeBlock(code: String, lang: String) {
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text(
-                code,
+                highlighted,
                 fontFamily = CodeFontFamily,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = base,
                 modifier = Modifier
                     .horizontalScroll(rememberScrollState())
                     .padding(12.dp),

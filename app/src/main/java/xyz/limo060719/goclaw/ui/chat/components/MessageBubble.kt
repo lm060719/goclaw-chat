@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -86,6 +87,7 @@ internal fun MessageRow(
     onRegenerate: (() -> Unit)? = null,
     onBranch: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
+    onSelectText: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val rowBg =
@@ -117,6 +119,14 @@ internal fun MessageRow(
                 leadingIcon = { Icon(Icons.Filled.ContentCopy, null) },
                 onClick = { menuOpen = false; onCopy() },
             )
+            // Long-press is taken by this menu, so partial selection lives in the detail view.
+            onSelectText?.let { select ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.msg_select_text)) },
+                    leadingIcon = { Icon(Icons.Filled.TextFields, null) },
+                    onClick = { menuOpen = false; select() },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.common_share)) },
                 leadingIcon = { Icon(Icons.Filled.Share, null) },

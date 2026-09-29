@@ -95,6 +95,7 @@
     <string name="err_branch_unsaved">Send a message first, then branch</string>
     <string name="chat_retry">Retry</string>
     <string name="msg_edit_resend">Edit &amp; resend</string>
+    <string name="msg_select_text">Select text</string>
     <string name="err_cannot_edit">Can\'t edit a file-only or voice message</string>
     <string name="chat_turn_failed">Failed to send</string>
     <string name="chat_scroll_to_bottom">Scroll to bottom</string>

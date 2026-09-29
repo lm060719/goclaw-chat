@@ -312,7 +312,8 @@ fun ChatScreen(
                             contentPadding = PaddingValues(12.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            items(state.messages, key = { it.id }) { msg ->
+                            // contentType lets the list reuse compositions per bubble shape.
+                            items(state.messages, key = { it.id }, contentType = { it.role }) { msg ->
                                 val isTextMessage = msg.role != Role.TOOL && msg.text.isNotBlank()
                                 // Regenerate only makes sense for the latest reply, and not mid-stream.
                                 val canRegenerate = !state.isStreaming &&
@@ -328,6 +329,7 @@ fun ChatScreen(
                                     selected = msg.id in state.selectedIds,
                                     onTap = { vm.toggleSelected(msg.id) },
                                     onDoubleTap = if (isTextMessage) ({ detailMessage = msg }) else null,
+                                    onSelectText = if (isTextMessage) ({ detailMessage = msg }) else null,
                                     onStartSelection = { vm.startSelection(msg.id) },
                                     onCopy = {
                                         clipboard.setText(AnnotatedString(vm.textOf(setOf(msg.id))))

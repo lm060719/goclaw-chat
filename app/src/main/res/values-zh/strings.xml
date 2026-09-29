@@ -95,6 +95,7 @@
     <string name="err_branch_unsaved">请先发送一条消息,再分支</string>
     <string name="chat_retry">重试</string>
     <string name="msg_edit_resend">编辑重发</string>
+    <string name="msg_select_text">选择文本</string>
     <string name="err_cannot_edit">仅含文件或语音的消息无法编辑</string>
     <string name="chat_turn_failed">发送失败</string>
     <string name="chat_scroll_to_bottom">回到底部</string>

@@ -26,6 +26,9 @@ Package: `xyz.limo060719.goclaw` · minSdk 26 · target/compileSdk 35 · modules
 - Long-press your own message → **Edit & resend**; a failed turn shows an inline "Retry"; scrolling
   up mid-stream stops auto-follow (a jump-to-bottom button brings you back); unsent drafts are
   kept per chat; deleting a chat from the drawer can be undone for 5 seconds.
+- Markdown: grayscale-highlighted code blocks with copy, horizontally scrollable tables, nested and
+  task lists, images, auto-linked URLs; streaming renders incrementally per paragraph so long
+  replies stay smooth. Long-press → "Select text" to copy just part of a message.
 - Switch away during a long reply and you get a notification when it's done — tap to open that chat.
 - Share text, images or files from any app → "GoClaw Chat" to start a new chat with them.
 - Long conversations got you? You can compact server-side history from **Session Management**

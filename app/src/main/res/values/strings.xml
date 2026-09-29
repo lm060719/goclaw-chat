@@ -56,8 +56,8 @@
     <string name="chat_input_hint">Message</string>
     <string name="chat_stop">Stop</string>
     <string name="chat_send">Send</string>
-    <string name="chat_recording">Recording…</string>
-    <string name="chat_release_to_send">Release to send</string>
+    <string name="chat_swipe_up_cancel">Release to send, slide up to cancel</string>
+    <string name="chat_release_to_cancel">Release to cancel</string>
 
     <!-- Drawer -->
     <string name="drawer_search">Search chats</string>
@@ -94,6 +94,8 @@
     <string name="err_branch_failed">Branch failed: %1$s</string>
     <string name="err_branch_unsaved">Send a message first, then branch</string>
     <string name="chat_retry">Retry</string>
+    <string name="msg_edit_resend">Edit &amp; resend</string>
+    <string name="err_cannot_edit">Can\'t edit a file-only or voice message</string>
     <string name="chat_turn_failed">Failed to send</string>
     <string name="chat_scroll_to_bottom">Scroll to bottom</string>
     <string name="err_cannot_regenerate">Can\'t regenerate a file-only or voice message</string>
@@ -409,6 +411,10 @@
     <string name="notif_channel_approvals_desc">Alerts when a shell command is waiting for your approval</string>
     <string name="notif_approval_title">Command awaiting approval</string>
     <string name="notif_approval_generic">A shell command is waiting for your approval</string>
+    <string name="notif_channel_replies">Replies</string>
+    <string name="notif_channel_replies_desc">Alerts when a reply finishes while the app is in the background</string>
+    <string name="notif_reply_title">Reply ready</string>
+    <string name="notif_reply_generic">The reply is ready — tap to view</string>
     <string name="settings_approval_notif">Approval notifications</string>
     <string name="settings_approval_notif_desc">Check the gateway in the background (~every 15 min) and notify you of pending shell approvals</string>
 </resources>

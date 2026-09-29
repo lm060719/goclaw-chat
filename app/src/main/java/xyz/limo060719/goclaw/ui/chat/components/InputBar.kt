@@ -2,7 +2,8 @@ package xyz.limo060719.goclaw.ui.chat.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,7 +48,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,6 +59,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -80,7 +86,10 @@ internal fun InputBar(
     onRequestRecord: () -> Unit,
     onVoiceStart: () -> Unit,
     onVoiceEnd: () -> Unit,
+    onVoiceCancel: () -> Unit,
+    onVoiceCancelArmed: (Boolean) -> Unit,
 ) {
+    val cancelDistance = with(LocalDensity.current) { 72.dp.toPx() }
     val canSend = input.isNotBlank() || attachmentCount > 0
     Surface(color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxWidth().padding(10.dp).navigationBarsPadding().imePadding()) {
@@ -107,23 +116,36 @@ internal fun InputBar(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    // Hold to record a voice message; release to send.
+                    // Hold to record a voice message; release to send, slide up (then release) to cancel.
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .size(48.dp)
                             .pointerInput(canRecord) {
-                                detectTapGestures(
-                                    onPress = {
-                                        if (!canRecord) {
-                                            onRequestRecord()
-                                            return@detectTapGestures
+                                awaitEachGesture {
+                                    val down = awaitFirstDown()
+                                    if (!canRecord) {
+                                        onRequestRecord()
+                                        return@awaitEachGesture
+                                    }
+                                    onVoiceStart()
+                                    var armed = false
+                                    try {
+                                        while (true) {
+                                            val change = awaitPointerEvent().changes
+                                                .firstOrNull { it.id == down.id } ?: break
+                                            change.consume()
+                                            if (!change.pressed) break
+                                            val nowArmed = down.position.y - change.position.y > cancelDistance
+                                            if (nowArmed != armed) { armed = nowArmed; onVoiceCancelArmed(armed) }
                                         }
-                                        onVoiceStart()
-                                        tryAwaitRelease()
-                                        onVoiceEnd()
-                                    },
-                                )
+                                    } catch (e: CancellationException) {
+                                        // Gesture torn down mid-press (e.g. recomposition) → never send by accident.
+                                        onVoiceCancel()
+                                        throw e
+                                    }
+                                    if (armed) onVoiceCancel() else onVoiceEnd()
+                                }
                             },
                     ) {
                         Icon(
@@ -268,9 +290,11 @@ internal fun AttachmentStrip(
     }
 }
 
-/** 按住录音时的全屏遮罩提示。 */
+/** 按住录音时的全屏遮罩提示：计时 + 上滑取消状态。 */
 @Composable
-internal fun RecordingOverlay() {
+internal fun RecordingOverlay(cancelArmed: Boolean) {
+    var seconds by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { delay(1000); seconds++ } }
     Box(
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center,
@@ -285,16 +309,20 @@ internal fun RecordingOverlay() {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(
-                    Icons.Filled.Mic, contentDescription = null,
+                    if (cancelArmed) Icons.Filled.Close else Icons.Filled.Mic, contentDescription = null,
                     tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.chat_recording), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "%d:%02d".format(seconds / 60, seconds % 60),
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.chat_release_to_send),
+                    stringResource(if (cancelArmed) R.string.chat_release_to_cancel else R.string.chat_swipe_up_cancel),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (cancelArmed) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

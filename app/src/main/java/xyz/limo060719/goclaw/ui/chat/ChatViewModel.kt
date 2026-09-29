@@ -33,6 +33,7 @@ import xyz.limo060719.goclaw.domain.model.Role
 import xyz.limo060719.goclaw.domain.model.ToolCard
 import xyz.limo060719.goclaw.domain.model.UiMessage
 import xyz.limo060719.goclaw.util.ImageUtil
+import xyz.limo060719.goclaw.work.ReplyNotifier
 import xyz.limo060719.goclaw.voice.SpeechManager
 import javax.inject.Inject
 
@@ -389,6 +390,7 @@ class ChatViewModel @Inject constructor(
             } ?: return@launch
             streamJob?.cancel()
             stashDraft()
+            ReplyNotifier.cancel(context, conv.id)
             currentConversationId = conv.id
             currentTitle = conv.title.takeIf { it.isNotBlank() }
             currentAgentKey = conv.agentKey
@@ -436,12 +438,21 @@ class ChatViewModel @Inject constructor(
                         }
                         _state.value = _state.value.copy(turnFailed = false)
                         persist()
+                        notifyReply(reply)
                     }
                     return@launch
                 }
                 kotlinx.coroutines.delay(2500)
             }
         }
+    }
+
+    /** Tells the user a reply landed while the app was in the background (no-op when visible). */
+    private fun notifyReply(fallbackText: String) {
+        val cid = currentConversationId ?: return
+        val text = _state.value.messages.lastOrNull { it.role == Role.ASSISTANT }?.text
+            ?.takeIf { it.isNotBlank() } ?: fallbackText
+        ReplyNotifier.notifyIfBackground(context, cid, currentTitle.orEmpty(), text)
     }
 
     private fun isPending(m: UiMessage?): Boolean =
@@ -582,12 +593,57 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
+     * "Edit & resend" a user message: its text/images go back into the input box for editing, and
+     * the history is cut back to just before it.
+     * - First message → a fresh conversation (clean server context).
+     * - Latest user turn → truncated in place, like [regenerate] (the server session still holds
+     *   the old turn; nothing is persisted until the edited message is sent).
+     * - Earlier turn → the conversation is branched just before it, so the server context matches.
+     */
+    fun editMessage(messageId: String) {
+        val s = _state.value
+        if (s.isStreaming) return
+        val idx = s.messages.indexOfFirst { it.id == messageId }
+        val msg = s.messages.getOrNull(idx)?.takeIf { it.role == Role.USER } ?: return
+        if (msg.text.isBlank() && msg.attachments.isEmpty()) {
+            _state.value = s.copy(error = context.getString(R.string.err_cannot_edit))
+            return
+        }
+        fun prefill() {
+            _state.value = _state.value.copy(input = msg.text, attachments = msg.attachments)
+        }
+        when {
+            idx == 0 -> { newConversation(); prefill() }
+            idx == s.messages.indexOfLast { it.role == Role.USER } -> {
+                syncJob?.cancel()
+                _state.value = s.copy(messages = s.messages.take(idx), turnFailed = false)
+                prefill()
+            }
+            else -> branchFrom(s.messages[idx - 1].id, onBranched = ::prefill)
+        }
+    }
+
+    /**
+     * Content shared into the app from another app's share sheet: starts a new conversation (unless
+     * the open one is still empty) with the text in the input box and the media as attachments.
+     */
+    fun receiveShare(text: String, images: List<Uri>, files: List<Uri>) {
+        if (_state.value.messages.isNotEmpty() || _state.value.isStreaming) newConversation()
+        if (text.isNotBlank()) {
+            val cur = _state.value.input
+            _state.value = _state.value.copy(input = if (cur.isBlank()) text else "$cur\n$text")
+        }
+        images.forEach(::addImage)
+        files.forEach(::addFile)
+    }
+
+    /**
      * Forks the conversation at [messageId] into a new one: the server session is branched (so the
      * new chat resumes the forked context) and a local conversation is created holding the messages
      * up to and including that point, then opened. No-op while streaming or before the conversation
      * is persisted; a gateway that lacks the branch route surfaces a friendly error.
      */
-    fun branchFrom(messageId: String) {
+    fun branchFrom(messageId: String, onBranched: (() -> Unit)? = null) {
         if (_state.value.isStreaming) return
         val msgs = _state.value.messages
         val idx = msgs.indexOfFirst { it.id == messageId }
@@ -633,6 +689,7 @@ class ChatViewModel @Inject constructor(
                         ttsEnabled = _state.value.ttsEnabled,
                         error = context.getString(R.string.msg_branch_done),
                     )
+                    onBranched?.invoke()
                 }
                 .onFailure {
                     _state.value = _state.value.copy(
@@ -695,6 +752,7 @@ class ChatViewModel @Inject constructor(
                 _state.value = _state.value.copy(isStreaming = false)
                 if (_state.value.ttsEnabled && ev.text.isNotBlank()) speakReply(ev.text)
                 persist()
+                notifyReply(ev.text)
             }
             is ChatEvent.Error -> {
                 // A partially-streamed block was cut off — flag it so we can recover the full reply.
@@ -800,6 +858,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun cancelVoiceMessage() {
+        if (!_state.value.isRecording) return
         recorder.cancel()
         _state.value = _state.value.copy(isRecording = false)
     }

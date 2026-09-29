@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -54,10 +55,12 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,6 +101,10 @@ import xyz.limo060719.goclaw.ui.chat.components.TypingDots
 fun ChatScreen(
     onOpenSettings: () -> Unit,
     onOpenExtras: () -> Unit,
+    openConversationId: String? = null,
+    onConversationOpened: () -> Unit = {},
+    share: SharedContent? = null,
+    onShareConsumed: () -> Unit = {},
     vm: ChatViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -138,6 +145,31 @@ fun ChatScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasRecordPerm = granted }
 
+    // Reply-finished notifications need POST_NOTIFICATIONS on 13+: ask once per launch, on the
+    // first send (when the user actually starts waiting on a reply), never on startup.
+    val notifPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+    var askedNotif by rememberSaveable { mutableStateOf(false) }
+    val sendWithNotifAsk = {
+        if (!askedNotif && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            askedNotif = true
+            notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        vm.send()
+    }
+    var voiceCancelArmed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(openConversationId) {
+        openConversationId?.let { vm.openConversation(it); onConversationOpened() }
+    }
+    LaunchedEffect(share) {
+        share?.let { vm.receiveShare(it.text, it.images, it.files); onShareConsumed() }
+    }
+
     // Follow the bottom only while the user hasn't scrolled away: a drag turns following off,
     // and settling back at the bottom (by drag, fling or the jump button) turns it on again.
     var autoFollow by remember { mutableStateOf(true) }
@@ -156,7 +188,7 @@ fun ChatScreen(
         if (animate) listState.animateScrollToItem(last, Int.MAX_VALUE)
         else listState.scrollToItem(last, Int.MAX_VALUE)
     }
-    var lastCount by remember { mutableStateOf(0) }
+    var lastCount by remember { mutableIntStateOf(0) }
     LaunchedEffect(state.messages.size) {
         val added = state.messages.size - lastCount
         lastCount = state.messages.size
@@ -239,7 +271,7 @@ fun ChatScreen(
                             isStreaming = state.isStreaming,
                             hasMessages = state.messages.isNotEmpty(),
                             onInputChange = vm::onInputChange,
-                            onSend = vm::send,
+                            onSend = sendWithNotifAsk,
                             onStop = vm::stopStreaming,
                             onPickImage = {
                                 imagePicker.launch(
@@ -250,8 +282,10 @@ fun ChatScreen(
                             recording = state.isRecording,
                             canRecord = hasRecordPerm,
                             onRequestRecord = { recordPermission.launch(Manifest.permission.RECORD_AUDIO) },
-                            onVoiceStart = vm::startVoiceMessage,
+                            onVoiceStart = { voiceCancelArmed = false; vm.startVoiceMessage() },
                             onVoiceEnd = vm::finishVoiceMessage,
+                            onVoiceCancel = vm::cancelVoiceMessage,
+                            onVoiceCancelArmed = { voiceCancelArmed = it },
                         )
                     }
                 },
@@ -304,6 +338,10 @@ fun ChatScreen(
                                     onDownloadFile = { vm.downloadAndSaveFile(it) },
                                     onRegenerate = if (canRegenerate) vm::regenerate else null,
                                     onBranch = if (canBranch) ({ vm.branchFrom(msg.id) }) else null,
+                                    // Edit & resend: own text/image messages, not mid-stream.
+                                    onEdit = if (!state.isStreaming && msg.role == Role.USER &&
+                                        (msg.text.isNotBlank() || msg.attachments.isNotEmpty())
+                                    ) ({ vm.editMessage(msg.id) }) else null,
                                 )
                             }
                             if (state.isStreaming && state.messages.lastOrNull()?.streaming != true) {
@@ -350,7 +388,7 @@ fun ChatScreen(
             }
 
             if (state.isRecording) {
-                RecordingOverlay()
+                RecordingOverlay(cancelArmed = voiceCancelArmed)
             }
         }
     }

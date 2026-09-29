@@ -23,6 +23,11 @@ Package: `xyz.limo060719.goclaw` · minSdk 26 · target/compileSdk 35 · modules
 - Tap stop mid-reply and it actually tells the server to abort the run (`chat.abort`), not just
   drops the socket.
 - Tool calls show up as their own cards in the chat (name, input, result).
+- Long-press your own message → **Edit & resend**; a failed turn shows an inline "Retry"; scrolling
+  up mid-stream stops auto-follow (a jump-to-bottom button brings you back); unsent drafts are
+  kept per chat; deleting a chat from the drawer can be undone for 5 seconds.
+- Switch away during a long reply and you get a notification when it's done — tap to open that chat.
+- Share text, images or files from any app → "GoClaw Chat" to start a new chat with them.
 - Long conversations got you? You can compact server-side history from **Session Management**
   instead of blowing your context window every turn.
 
@@ -43,6 +48,8 @@ Package: `xyz.limo060719.goclaw` · minSdk 26 · target/compileSdk 35 · modules
 
 **Voice**
 - Mic button uses on-device `SpeechRecognizer` for input.
+- Hold the waveform button to record a voice message: release to send, slide up and release to
+  cancel (the overlay shows the elapsed time).
 - Replies can be read aloud with on-device TTS (auto-picks a Chinese voice when the reply has
   Chinese in it, so you don't get English-voiced Chinese text), or you can flip a switch in
   Settings to use the backend's TTS provider for higher-quality voices — it silently falls back to

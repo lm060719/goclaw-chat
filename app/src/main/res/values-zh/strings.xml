@@ -56,8 +56,8 @@
     <string name="chat_input_hint">输入消息</string>
     <string name="chat_stop">停止</string>
     <string name="chat_send">发送</string>
-    <string name="chat_recording">正在录音…</string>
-    <string name="chat_release_to_send">松开发送</string>
+    <string name="chat_swipe_up_cancel">松开发送，上滑取消</string>
+    <string name="chat_release_to_cancel">松开手指，取消发送</string>
 
     <!-- Drawer -->
     <string name="drawer_search">搜索历史对话</string>
@@ -94,6 +94,8 @@
     <string name="err_branch_failed">分支失败:%1$s</string>
     <string name="err_branch_unsaved">请先发送一条消息,再分支</string>
     <string name="chat_retry">重试</string>
+    <string name="msg_edit_resend">编辑重发</string>
+    <string name="err_cannot_edit">仅含文件或语音的消息无法编辑</string>
     <string name="chat_turn_failed">发送失败</string>
     <string name="chat_scroll_to_bottom">回到底部</string>
     <string name="err_cannot_regenerate">仅含文件或语音的消息无法重新生成</string>
@@ -409,6 +411,10 @@
     <string name="notif_channel_approvals_desc">有 shell 命令等待你审批时提醒</string>
     <string name="notif_approval_title">有命令待审批</string>
     <string name="notif_approval_generic">有一条 shell 命令等待你审批</string>
+    <string name="notif_channel_replies">回复完成</string>
+    <string name="notif_channel_replies_desc">应用在后台时，AI 回复生成完毕后提醒</string>
+    <string name="notif_reply_title">AI 回复完成</string>
+    <string name="notif_reply_generic">回复已生成，点击查看</string>
     <string name="settings_approval_notif">审批通知</string>
     <string name="settings_approval_notif_desc">在后台定期(约每 15 分钟)检查网关,有待审批的 shell 命令时通知你</string>
 </resources>

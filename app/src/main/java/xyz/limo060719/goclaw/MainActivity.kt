@@ -29,7 +29,9 @@ import kotlinx.coroutines.runBlocking
 import xyz.limo060719.goclaw.data.GoClawSettings
 import xyz.limo060719.goclaw.data.SettingsStore
 import xyz.limo060719.goclaw.work.ApprovalNotifier
+import xyz.limo060719.goclaw.work.ReplyNotifier
 import xyz.limo060719.goclaw.ui.chat.ChatScreen
+import xyz.limo060719.goclaw.ui.chat.SharedContent
 import xyz.limo060719.goclaw.ui.settings.AiProviderScreen
 import xyz.limo060719.goclaw.ui.settings.ApprovalScreen
 import xyz.limo060719.goclaw.ui.settings.ApiKeysScreen
@@ -63,16 +65,37 @@ class MainActivity : ComponentActivity() {
 
     /** Route a notification tap asked us to open; consumed once by the NavHost. */
     private val pendingRoute = MutableStateFlow<String?>(null)
+    /** Conversation a reply notification asked us to open; consumed once by the chat screen. */
+    private val pendingConversation = MutableStateFlow<String?>(null)
+    /** Content shared in from another app; consumed once by the chat screen. */
+    private val pendingShare = MutableStateFlow<SharedContent?>(null)
 
     // Apply the in-app language before the Activity's resources are created.
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase))
     }
 
+    override fun onStart() {
+        super.onStart()
+        ReplyNotifier.appInForeground = true
+    }
+
+    override fun onStop() {
+        ReplyNotifier.appInForeground = false
+        super.onStop()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        readIntent(intent)
+    }
+
+    private fun readIntent(intent: Intent?) {
+        intent ?: return
         pendingRoute.value = intent.getStringExtra(ApprovalNotifier.EXTRA_OPEN_ROUTE)
+        intent.getStringExtra(ReplyNotifier.EXTRA_OPEN_CONVERSATION)?.let { pendingConversation.value = it }
+        SharedContent.from(intent) { contentResolver.getType(it) }?.let { pendingShare.value = it }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,7 +108,8 @@ class MainActivity : ComponentActivity() {
         // 否则 DataStore 异步读出真实值之前,会先用占位值 themeMode="system" 退回系统深浅,
         // 在「系统深色 + 软件浅色」时先渲染成黑再切白,造成进入软件时的黑白闪烁。
         val bootSettings = runBlocking { settingsStore.current() }
-        pendingRoute.value = intent?.getStringExtra(ApprovalNotifier.EXTRA_OPEN_ROUTE)
+        // Only on a real launch: after a rotation/recreate the same intent would be replayed.
+        if (savedInstanceState == null) readIntent(intent)
         setContent {
             val settings by settingsStore.settings.collectAsStateWithLifecycle(initialValue = bootSettings)
             val dark = when (settings.themeMode) {
@@ -108,11 +132,21 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(route) {
                         route?.let { nav.navigate(it); pendingRoute.value = null }
                     }
+                    // Opening a conversation / receiving a share happens on the chat screen.
+                    val openConversation by pendingConversation.collectAsStateWithLifecycle()
+                    val share by pendingShare.collectAsStateWithLifecycle()
+                    LaunchedEffect(openConversation, share) {
+                        if (openConversation != null || share != null) nav.popBackStack("chat", inclusive = false)
+                    }
                     NavHost(navController = nav, startDestination = "chat") {
                         composable("chat") {
                             ChatScreen(
                                 onOpenSettings = { nav.navigate("settings") },
                                 onOpenExtras = { nav.navigate("extras") },
+                                openConversationId = openConversation,
+                                onConversationOpened = { pendingConversation.value = null },
+                                share = share,
+                                onShareConsumed = { pendingShare.value = null },
                             )
                         }
                         composable("extras") {

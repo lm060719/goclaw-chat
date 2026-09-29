@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Person
@@ -84,6 +85,7 @@ internal fun MessageRow(
     onDownloadFile: ((FileRef) -> Unit)? = null,
     onRegenerate: (() -> Unit)? = null,
     onBranch: (() -> Unit)? = null,
+    onEdit: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val rowBg =
@@ -120,6 +122,13 @@ internal fun MessageRow(
                 leadingIcon = { Icon(Icons.Filled.Share, null) },
                 onClick = { menuOpen = false; onShare() },
             )
+            onEdit?.let { edit ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.msg_edit_resend)) },
+                    leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                    onClick = { menuOpen = false; edit() },
+                )
+            }
             onRegenerate?.let { regen ->
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.msg_regenerate)) },

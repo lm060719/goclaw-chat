@@ -8,7 +8,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,6 +29,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.VolumeOff
@@ -40,9 +45,10 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -52,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -106,6 +113,7 @@ fun ChatScreen(
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val conversations by vm.conversations.collectAsStateWithLifecycle()
+    val pendingDeletes by vm.pendingDeletes.collectAsStateWithLifecycle()
     val wechat by vm.wechatUi.collectAsStateWithLifecycle()
     val profile by vm.wechatProfile.collectAsStateWithLifecycle()
     val savedAgents by vm.savedAgents.collectAsStateWithLifecycle()
@@ -130,25 +138,42 @@ fun ChatScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasRecordPerm = granted }
 
-    // A new message: animate to the bottom once.
+    // Follow the bottom only while the user hasn't scrolled away: a drag turns following off,
+    // and settling back at the bottom (by drag, fling or the jump button) turns it on again.
+    var autoFollow by remember { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect {
+            if (it is DragInteraction.Start) autoFollow = false
+        }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress to listState.canScrollForward }
+            .collect { (scrolling, canForward) -> if (!scrolling && !canForward) autoFollow = true }
+    }
+    // Int.MAX_VALUE offset is clamped by the list → lands on the very end, even inside a long last bubble.
+    suspend fun jumpToEnd(animate: Boolean) {
+        val last = state.messages.lastIndex.takeIf { it >= 0 } ?: return
+        if (animate) listState.animateScrollToItem(last, Int.MAX_VALUE)
+        else listState.scrollToItem(last, Int.MAX_VALUE)
+    }
+    var lastCount by remember { mutableStateOf(0) }
     LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
+        val added = state.messages.size - lastCount
+        lastCount = state.messages.size
+        // Own message sent, or a whole conversation loaded → always go to the bottom.
+        if (added != 1 || state.messages.lastOrNull()?.role == Role.USER) autoFollow = true
+        if (autoFollow) jumpToEnd(animate = added == 1)
     }
     // Streaming tokens: jump instantly instead of restarting a scroll animation per token,
     // which otherwise fights itself and drops frames.
     LaunchedEffect(state.messages.lastOrNull()?.text) {
-        if (state.isStreaming && state.messages.isNotEmpty()) listState.scrollToItem(state.messages.lastIndex)
+        if (state.isStreaming && autoFollow) jumpToEnd(animate = false)
     }
     LaunchedEffect(state.error) {
         val err = state.error ?: return@LaunchedEffect
-        val retryable = state.retryable
         vm.clearError()
-        val result = snackbar.showSnackbar(
-            message = err,
-            actionLabel = if (retryable) retryLabel else null,
-            duration = SnackbarDuration.Short,
-        )
-        if (result == SnackbarResult.ActionPerformed) vm.regenerate()
+        // A failed turn is retried from the inline row under the last message; this is just the reason.
+        snackbar.showSnackbar(message = err, duration = SnackbarDuration.Short)
     }
     // When returning to the foreground, recover any reply that finished while we were away.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.syncPending() }
@@ -162,12 +187,14 @@ fun ChatScreen(
         drawerContent = {
             ChatDrawer(
                 conversations = conversations,
+                pendingDeletes = pendingDeletes,
                 onClose = { scope.launch { drawerState.close() } },
                 onNewChat = { scope.launch { drawerState.close() }; vm.newConversation() },
                 onOpenConversation = { id ->
                     scope.launch { drawerState.close() }; vm.openConversation(id)
                 },
                 onDeleteConversation = vm::deleteConversation,
+                onUndoDelete = vm::undoDeleteConversation,
                 onRenameConversation = vm::renameConversation,
                 onOpenExtras = { scope.launch { drawerState.close(); onOpenExtras() } },
                 onOpenSettings = { scope.launch { drawerState.close(); onOpenSettings() } },
@@ -244,9 +271,10 @@ fun ChatScreen(
                             onSuggestion = { prompt -> vm.onInputChange(prompt) },
                         )
                     } else {
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(12.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
@@ -281,6 +309,29 @@ fun ChatScreen(
                             if (state.isStreaming && state.messages.lastOrNull()?.streaming != true) {
                                 item { TypingDots() }
                             }
+                            if (state.turnFailed && !state.isStreaming) {
+                                item(key = "turn_failed") {
+                                    TurnFailedRow(retryLabel = retryLabel, onRetry = vm::regenerate)
+                                }
+                            }
+                        }
+                        // Shown whenever the user has scrolled away from the latest content.
+                        // Fully-qualified: the enclosing ColumnScope overload can't be used from this Box.
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = listState.canScrollForward && !autoFollow,
+                            enter = fadeIn(), exit = fadeOut(),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                        ) {
+                            SmallFloatingActionButton(
+                                onClick = { autoFollow = true; scope.launch { jumpToEnd(animate = true) } },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Icon(
+                                    Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.chat_scroll_to_bottom),
+                                )
+                            }
+                        }
                         }
                     }
                 }
@@ -386,6 +437,30 @@ private fun ChatTopBar(
                 }
             },
         )
+    }
+}
+
+/** Inline marker under the last message when the latest turn failed, with a one-tap retry. */
+@Composable
+private fun TurnFailedRow(retryLabel: String, onRetry: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Filled.ErrorOutline,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            stringResource(R.string.chat_turn_failed),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        TextButton(onClick = onRetry) { Text(retryLabel) }
     }
 }
 

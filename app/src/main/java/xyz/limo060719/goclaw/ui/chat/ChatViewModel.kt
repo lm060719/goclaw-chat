@@ -56,8 +56,8 @@ data class ChatUiState(
     val isRecording: Boolean = false,
     val ttsEnabled: Boolean = false,
     val error: String? = null,
-    /** True when [error] came from a failed chat turn that can be re-sent (drives the snackbar "Retry"). */
-    val retryable: Boolean = false,
+    /** True when the latest turn failed and can be re-sent (drives the inline "failed · retry" row). */
+    val turnFailed: Boolean = false,
     val selectionMode: Boolean = false,
     val selectedIds: Set<String> = emptySet(),
 )
@@ -76,6 +76,14 @@ class ChatViewModel @Inject constructor(
 
     /** History list shown in the drawer. */
     val conversations: StateFlow<List<ConversationMeta>> = conversationStore.conversations
+
+    /** Conversations deleted in the drawer but still undoable (committed after [UNDO_WINDOW_MS]). */
+    private val _pendingDeletes = MutableStateFlow<Set<String>>(emptySet())
+    val pendingDeletes: StateFlow<Set<String>> = _pendingDeletes.asStateFlow()
+    private val deleteJobs = mutableMapOf<String, Job>()
+
+    /** Unsent input per conversation (key "" = the fresh, not-yet-saved chat). In-memory only. */
+    private val drafts = mutableMapOf<String, String>()
 
     /** Whether to render the chat in WeChat style. */
     val wechatUi: StateFlow<Boolean> = settingsStore.settings
@@ -182,7 +190,7 @@ class ChatViewModel @Inject constructor(
         if (ids.isEmpty()) return
         val remaining = _state.value.messages.filterNot { it.id in ids }
         _state.value = _state.value.copy(
-            messages = remaining, selectionMode = false, selectedIds = emptySet(),
+            messages = remaining, selectionMode = false, selectedIds = emptySet(), turnFailed = false,
         )
         if (remaining.isEmpty()) {
             val cid = currentConversationId
@@ -352,13 +360,22 @@ class ChatViewModel @Inject constructor(
         repository.uploadRaw(bytes, mime, f.name)
     }
 
+    /** Remembers the current input under the open conversation before switching away from it. */
+    private fun stashDraft() {
+        drafts[currentConversationId.orEmpty()] = _state.value.input
+    }
+
+    private fun draftFor(id: String?): String = drafts[id.orEmpty()].orEmpty()
+
     fun newConversation() {
         streamJob?.cancel()
+        stashDraft()
         currentConversationId = null
         currentTitle = null
         currentAgentKey = null
         currentAssistantId = null
         _state.value = ChatUiState(
+            input = draftFor(null),
             agent = activeAgent,
             ttsEnabled = _state.value.ttsEnabled,
         )
@@ -371,12 +388,14 @@ class ChatViewModel @Inject constructor(
                 conversationStore.load(id)
             } ?: return@launch
             streamJob?.cancel()
+            stashDraft()
             currentConversationId = conv.id
             currentTitle = conv.title.takeIf { it.isNotBlank() }
             currentAgentKey = conv.agentKey
             currentAssistantId = null
             _state.value = ChatUiState(
                 messages = conv.messages.map { it.copy(streaming = false) },
+                input = draftFor(conv.id),
                 agent = conv.agentKey ?: activeAgent,
                 ttsEnabled = _state.value.ttsEnabled,
             )
@@ -415,6 +434,7 @@ class ChatViewModel @Inject constructor(
                             last.role == Role.ASSISTANT && last.incomplete ->
                                 updateMessage(last.id) { it.copy(text = reply, incomplete = false, streaming = false) }
                         }
+                        _state.value = _state.value.copy(turnFailed = false)
                         persist()
                     }
                     return@launch
@@ -427,14 +447,39 @@ class ChatViewModel @Inject constructor(
     private fun isPending(m: UiMessage?): Boolean =
         m != null && (m.role == Role.USER || (m.role == Role.ASSISTANT && m.incomplete))
 
+    /**
+     * Soft-deletes a conversation from the drawer: it is marked pending (the drawer shows an
+     * "undo" row) and only really deleted — locally AND on the server — after [UNDO_WINDOW_MS].
+     */
     fun deleteConversation(id: String) {
+        if (id in _pendingDeletes.value) return
+        _pendingDeletes.value = _pendingDeletes.value + id
+        if (id == currentConversationId) newConversation()
+        deleteJobs[id] = viewModelScope.launch {
+            delay(UNDO_WINDOW_MS)
+            commitDelete(id)
+        }
+    }
+
+    fun undoDeleteConversation(id: String) {
+        deleteJobs.remove(id)?.cancel() ?: return
+        _pendingDeletes.value = _pendingDeletes.value - id
+        // It was open when deleted and the user hasn't started anything else → bring it back.
+        if (currentConversationId == null && _state.value.messages.isEmpty() && !_state.value.isStreaming) {
+            openConversation(id)
+        }
+    }
+
+    private fun commitDelete(id: String) {
+        deleteJobs.remove(id)
         // The index meta already carries the agent key — no need to read the content file.
         val agentKey = conversationStore.conversations.value.firstOrNull { it.id == id }?.agentKey
         if (!agentKey.isNullOrBlank()) {
             viewModelScope.launch { repository.deleteServerSession(id, agentKey) }
         }
         conversationStore.delete(id)
-        if (id == currentConversationId) newConversation()
+        drafts.remove(id)
+        _pendingDeletes.value = _pendingDeletes.value - id
     }
 
     fun renameConversation(id: String, title: String) {
@@ -507,7 +552,7 @@ class ChatViewModel @Inject constructor(
         appendMessage(
             UiMessage(role = Role.USER, text = text, attachments = attachments, fileNames = files.map { it.name })
         )
-        _state.value = _state.value.copy(isStreaming = true, retryable = false)
+        _state.value = _state.value.copy(isStreaming = true, turnFailed = false)
         currentAssistantId = null
         streamedAnyBlock = false
         persist()
@@ -521,7 +566,9 @@ class ChatViewModel @Inject constructor(
             val media = imagePaths + filePaths
 
             if ((attachments.isNotEmpty() || files.isNotEmpty()) && media.isEmpty()) {
-                _state.value = _state.value.copy(isStreaming = false, error = context.getString(R.string.err_attach_upload))
+                _state.value = _state.value.copy(
+                    isStreaming = false, error = context.getString(R.string.err_attach_upload), turnFailed = true,
+                )
                 return@launch
             }
 
@@ -575,6 +622,7 @@ class ChatViewModel @Inject constructor(
                     )
                     streamJob?.cancel()
                     syncJob?.cancel()
+                    stashDraft()
                     currentConversationId = newCid
                     currentTitle = newTitle
                     currentAgentKey = ak
@@ -652,7 +700,7 @@ class ChatViewModel @Inject constructor(
                 // A partially-streamed block was cut off — flag it so we can recover the full reply.
                 currentAssistantId?.let { id -> updateMessage(id) { it.copy(incomplete = true) } }
                 finalizeBlock()
-                _state.value = _state.value.copy(isStreaming = false, error = ev.message, retryable = true)
+                _state.value = _state.value.copy(isStreaming = false, error = ev.message, turnFailed = true)
                 persist()
                 recoverReply()
             }
@@ -810,9 +858,16 @@ class ChatViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        // Undo windows still open when the VM dies: honour the delete locally (viewModelScope is
+        // already cancelled here, so the server session is left for the Sessions screen to clean).
+        _pendingDeletes.value.forEach { conversationStore.delete(it) }
         speech.shutdown()
         recorder.cancel()
         audioPlayer.release()
         super.onCleared()
+    }
+
+    private companion object {
+        const val UNDO_WINDOW_MS = 5_000L
     }
 }

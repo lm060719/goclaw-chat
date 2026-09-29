@@ -35,6 +35,7 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,10 +58,12 @@ import xyz.limo060719.goclaw.ui.chat.components.RenameDialog
 @Composable
 internal fun ChatDrawer(
     conversations: List<ConversationMeta>,
+    pendingDeletes: Set<String>,
     onClose: () -> Unit,
     onNewChat: () -> Unit,
     onOpenConversation: (String) -> Unit,
     onDeleteConversation: (String) -> Unit,
+    onUndoDelete: (String) -> Unit,
     onRenameConversation: (String, String) -> Unit,
     onOpenExtras: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -148,7 +151,12 @@ internal fun ChatDrawer(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(filtered, key = { it.id }) { conv ->
-                    Surface(
+                    if (conv.id in pendingDeletes) {
+                        UndoDeleteRow(
+                            title = conv.title.ifBlank { stringResource(R.string.chat_untitled) },
+                            onUndo = { onUndoDelete(conv.id) },
+                        )
+                    } else Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         shape = MaterialTheme.shapes.medium,
                         modifier = Modifier.fillMaxWidth(),
@@ -206,6 +214,31 @@ internal fun ChatDrawer(
         )
         DrawerEntry(Icons.Filled.Settings, stringResource(R.string.settings_title), onOpenSettings)
         Spacer(Modifier.height(12.dp))
+    }
+}
+
+/** Placeholder for a just-deleted conversation while its undo window is open. */
+@Composable
+private fun UndoDeleteRow(title: String, onUndo: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        ) {
+            Text(
+                stringResource(R.string.drawer_deleted, title),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onUndo) { Text(stringResource(R.string.drawer_undo)) }
+        }
     }
 }
 

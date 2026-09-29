@@ -65,6 +65,8 @@
     <string name="drawer_history_empty">No chats yet</string>
     <string name="drawer_history_no_match">No matching chats</string>
     <string name="drawer_delete_conversation">Delete chat</string>
+    <string name="drawer_deleted">Deleted “%1$s”</string>
+    <string name="drawer_undo">Undo</string>
     <string name="drawer_extras">Extra features</string>
 
     <!-- Empty state -->
@@ -92,6 +94,8 @@
     <string name="err_branch_failed">Branch failed: %1$s</string>
     <string name="err_branch_unsaved">Send a message first, then branch</string>
     <string name="chat_retry">Retry</string>
+    <string name="chat_turn_failed">Failed to send</string>
+    <string name="chat_scroll_to_bottom">Scroll to bottom</string>
     <string name="err_cannot_regenerate">Can\'t regenerate a file-only or voice message</string>
     <string name="msg_thinking_active">Thinking…</string>
     <string name="msg_thinking">Reasoning</string>

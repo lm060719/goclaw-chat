@@ -16,6 +16,12 @@ local.properties
 *.apk
 *.ap_
 
+# Release signing — never commit the keystore or its passwords.
+keystore.properties
+*.jks
+*.keystore
+*.p12
+
 # AI tool local configs
 .claude
 
